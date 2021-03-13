@@ -16,9 +16,13 @@ import pickle
 import pandas as pd
 
 METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031121.csv'
-params = ['OUT_DIM', 'LR', 'WD', 'PATIENCE', 'N_EPOCHS', 'STATE_DICT', 'LOSS_STATS', 'DISABLE_CUDA']
+params = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'N_WORKERS', 'OUT_DIM', 'LR', 'WD', 'PATIENCE', 'N_EPOCHS', 'STATE_DICT', 'LOSS_STATS', 'DISABLE_CUDA']
 
 #################### SETUP ####################
+train_frac = 0.8
+val_frac = 0.2
+batch_size = 250
+n_workers = 2
 output_size = 1
 learning_rate = 0.001
 weight_decay = 0.001
@@ -38,9 +42,9 @@ for k,v in zip(params, [output_size, learning_rate, weight_decay, patience, n_ep
     
 #################### INIT DATA ####################
 df = pd.read_csv(METADATA_FILEPATH)
-train, val = data_utils.split_datasets_by_sample(df, 0.8, 0.2, unit='tile', cancers=['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD'])
-train_loader = DataLoader(train, batch_size=250, drop_last=True, pin_memory=True, num_workers=3)
-val_loader = DataLoader(val, batch_size=250, drop_last=False, pin_memory=True, num_workers=3)
+train, val = data_utils.split_datasets_by_sample(df, train_frac, val_frac, unit='tile', cancers=['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD'])
+train_loader = DataLoader(train, batch_size=batch_size, drop_last=True, pin_memory=True, num_workers=n_workers)
+val_loader = DataLoader(val, batch_size=batch_size, drop_last=False, pin_memory=True, num_workers=n_workers)
 
 # test run
 #train, val = data_utils.split_datasets_by_sample(df.loc[:2, :], 0.5, 0.5, unit='tile')#, cancers=['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD'])
