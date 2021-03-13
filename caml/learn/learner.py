@@ -5,31 +5,24 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models
 
-import os
-import sys
-from os.path import dirname, realpath
-sys.path.append(dirname(dirname(realpath(__file__))))
-from caml.datasets import data_utils
-
 import numpy as np
 import pandas as pd
 from itertools import cycle
 from sklearn.metrics import roc_auc_score
 
-%reload_ext autoreload
-%autoreload 2
-
-PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:.4f} AUC {3:.4f}, {7:6} Loss {4:.4f} AUC {5:.4f}'
+PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, device, scheduler, patience, outfile, verbose=True):
-    old_loss = 1e9
     tally = 0
+    old_loss = 1e9
+    overall_loss_tracker = []
     
     for n in range(n_epochs):
         run_training_epoch(n, train_loader, val_loader, net, criterions[0], optimizer, device, verbose)
         
         loss_tracker = run_validation_epoch(n, val_loader, net, criterions[1], device, verbose)
         loss = torch.mean(loss_tracker)
+        overall_loss_tracker.append(loss)
         
         if loss < old_loss: 
             old_loss = loss 
@@ -46,6 +39,8 @@ def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, 
             net.load_state_dict(saved_state)
             print('----- RELOADED MODEL -----')
             tally = 0
+            
+    return overall_loss_tracker
             
 def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, splits=['Train', 'Val']):
     for t, ((x, y), (x_val, y_val)) in enumerate(zip(train_loader, cycle(val_loader))):
@@ -72,7 +67,7 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
             except:
                 auc_val = 0.0
                 
-        if verbose:
+        if verbose and t % 100 == 0:
             print(PRINT_STMT.format(epoch_num, t, loss, auc, loss_val, auc_val, *splits))
 
         loss.backward()
@@ -100,7 +95,7 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
             y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
             y_prob_tracker = np.concatenate((y_prob_tracker, y_prob_val.squeeze(-1).numpy()))
         
-        if verbose:
+        if verbose and t % 25 == 0:
             try:
                 auc_all = roc_auc_score(y_tracker, y_prob_tracker)
             except:
