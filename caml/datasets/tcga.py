@@ -22,12 +22,12 @@ set_image_backend('accimage')
 
 #################### TCGA DATASET ####################
 class TCGAdataset(Dataset):
-    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, apply_filter=True):
+    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, apply_filter=True, random_seed=31321):
         '''
         df (pandas.DataFrame) : table with metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
         transform (torchvision.transforms.Compose) : pytorch tensor transformations
         min_tiles (int) : minimum number of tiles for patient to be included during sampling
-        num_tiles (int) : number of tiles to sample per patient (slide-level only)
+        num_tiles (int) : number of tiles to keep (tile) or sample (slide) per patient
         cancers (list or None) : cancers to include in the dataset; if None, include all
         label (str) : df column name for label annotation
         unit (str) : tile-level or slide-level inputs
@@ -47,11 +47,14 @@ class TCGAdataset(Dataset):
         self.H = H
         self.W = W
         
+        if random_seed is not None:
+            np.random.seed(random_seed)
+        
         if apply_filter:
             self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers)
             
         if self.unit == 'tile':
-            self.num_tiles = 1
+            self.df['n_tiles'] = self.df['n_tiles'].apply(lambda x: min(x, self.num_tiles))
             self.n_idxs = int(self.df['n_tiles'].sum())
         elif self.unit == 'slide':
             self.n_idxs = self.df.shape[0]
@@ -73,6 +76,7 @@ class TCGAdataset(Dataset):
         jpegs = os.listdir(filepath)
         
         if self.unit == 'tile':
+            np.random.shuffle(jpegs)
             jpeg_idx = int(idx - self.df.loc[df_idx, 'n_tiles_start'])
             filenames = np.array([jpegs[jpeg_idx]])
         elif self.unit == 'slide': 
