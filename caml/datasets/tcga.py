@@ -82,7 +82,7 @@ class TCGAdataset(Dataset):
             np.random.shuffle(jpegs)
             jpeg_idx = int(idx - self.df.loc[df_idx, 'n_tiles_start'])
             filenames = np.array([jpegs[jpeg_idx]])
-        elif self.unit == 'slide': 
+        elif self.unit == 'slide':
             if len(jpegs) < self.num_tiles:
                 filenames = np.random.choice(jpegs, self.num_tiles, replace=True)
             else:
