@@ -12,7 +12,7 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, device, scheduler, patience, outfile, verbose=True):
+def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, device, scheduler, patience, outfile, verbose=True, ff=False):
     tally = 0
     old_loss = 1e9
     overall_loss_tracker = []
@@ -27,7 +27,10 @@ def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, 
         
         if loss < old_loss: 
             old_loss = loss 
-            torch.save(net.state_dict(), outfile)
+            if ff:
+                torch.save(net.ff.state_dict(), outfile)
+            else:
+                torch.save(net.state_dict(), outfile)
             print('----- SAVED MODEL -----')
         else:
             tally += 1
@@ -37,13 +40,20 @@ def train_model(n_epochs, train_loader, val_loader, net, criterions, optimizer, 
 
         if tally > patience:
             saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
-            net.load_state_dict(saved_state)
+            if ff:
+                net.ff.load_state_dict(saved_state)
+            else:
+                net.load_state_dict(saved_state)
             print('----- RELOADED MODEL -----')
             tally = 0
             
     return overall_loss_tracker, overall_auc_tracker
 
 def cycle(iterable):
+    '''
+    - source: https://github.com/pytorch/pytorch/issues/23900
+    - addresses memory leak issue from itertools cycle
+    '''
     iterator = iter(iterable)
     while True:
         try:
@@ -112,6 +122,6 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
                 auc_val = 0.0
                 auc_all = 0.0
             loss_val = torch.mean(loss_val.detach().cpu())
-            print(PRINT_STMT.format(epoch_num, t, loss_val, auc_val, torch.mean(loss_tracker), auc_all, *splits))
+            print(PRINT_STMT.format(epoch_num, t, loss_val.item(), auc_val, torch.mean(loss_tracker), auc_all, *splits))
 
     return torch.mean(loss_tracker).item(), auc_all

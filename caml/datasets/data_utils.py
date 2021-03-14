@@ -21,7 +21,9 @@ JPEG_DIR = '/home/schao/jpeg'
 set_image_backend('accimage')
 
 #################### IMAGE TRANSFORMING ####################
-normalize = transforms.Normalize(mean=[0.7156, 0.5272, 0.6674], std=[0.2002, 0.2330, 0.1982]) # ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
+# ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
+normalize = transforms.Normalize(mean=[0.7156, 0.5272, 0.6674], std=[0.2002, 0.2330, 0.1982]) 
+
 transform = transforms.Compose([transforms.ToPILImage(),
                                 transforms.RandomVerticalFlip(),
                                 transforms.RandomHorizontalFlip(),
@@ -32,7 +34,23 @@ transform = transforms.Compose([transforms.ToPILImage(),
 def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, 
                              transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
     '''
-    - currently only handles TCGAdataset datasets
+    Note: 
+        - currently only handles TCGAdataset datasets
+
+    Args:
+        df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
+        train_frac (float): fraction of examples allocated to the train set
+        val_frac (float): fraction of examples allocated to the val set
+        random_seed (int): if not None, used to set the seed for numpy
+        transform (torchvision.transforms.Compose): pytorch tensor transformations
+        min_tiles (int): minimum number of tiles for patient to be included during sampling
+        num_tiles (int): number of tiles to keep (tile) or sample (slide) per patient
+        cancers (list or None): cancers to include in the dataset; if None, include all
+        label (str): column name in df for label annotation
+        unit (str): tile-level or slide-level inputs
+        mag (str): magnification level of the images
+        H (int): tile height
+        W (int): tile width
     '''
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -129,7 +147,7 @@ def default_loader(filepath):
 #################### IMAGE PRE-PROCESSING ####################
 def img_to_tensor(img):
     '''
-    convert image to float32 tensor
+    - convert image to float32 tensor
     '''
     
     if isinstance(img, accimage.Image):

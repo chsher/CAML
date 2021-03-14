@@ -24,16 +24,19 @@ set_image_backend('accimage')
 class TCGAdataset(Dataset):
     def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, apply_filter=True, random_seed=31321):
         '''
-        df (pandas.DataFrame) : table with metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
-        transform (torchvision.transforms.Compose) : pytorch tensor transformations
-        min_tiles (int) : minimum number of tiles for patient to be included during sampling
-        num_tiles (int) : number of tiles to keep (tile) or sample (slide) per patient
-        cancers (list or None) : cancers to include in the dataset; if None, include all
-        label (str) : df column name for label annotation
-        unit (str) : tile-level or slide-level inputs
-        mag (str) : magnification level of the slides
-        H (int) : tile height
-        W (int) : tile width
+        Args:
+            df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
+            transform (torchvision.transforms.Compose): pytorch tensor transformations
+            min_tiles (int): minimum number of tiles for patient to be included during sampling
+            num_tiles (int): number of tiles to keep (tile) or sample (slide) per patient
+            cancers (list or None): cancers to include in the dataset; if None, include all
+            label (str): column name in df for label annotation
+            unit (str): tile-level or slide-level inputs
+            mag (str): magnification level of the images
+            H (int): tile height
+            W (int): tile width
+            apply_filter (bool): if True, filter df for min_tiles and cancers
+            random_seed (int): if not None, used to set the seed for numpy
         '''
         
         self.df = df
