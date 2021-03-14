@@ -158,7 +158,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         except:
             auc = 0.0
 
-        print(PRINT_STMT.format(epoch_num, t, 0.0, 0.0, loss.item(), auc, *splits))
+        print(PRINT_STMT.format(epoch_num, t, 0.0, 0.0, loss.detach().cpu(), auc, *splits))
 
     return grads, local_models
 
@@ -204,15 +204,17 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                     
                     y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
 
-                if verbose:
-                    try:
-                        auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
-                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                    except:
-                        auc = 0.0
-                        auc_all = 0.0
-                    loss = torch.mean(loss.detach().cpu())
-                    print(PRINT_STMT.format(epoch_num, t, loss.item(), auc, torch.mean(loss_tracker), auc_all, *splits))
+                    if verbose:
+                        try:
+                            auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
+                            auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                        except:
+                            auc = 0.0
+                            auc_all = 0.0
+
+                        loss = torch.mean(loss.detach().cpu())
+                        
+                        print(PRINT_STMT.format(epoch_num, t, loss, auc, np.mean(loss_tracker), auc_all, *splits))
 
                 break
 

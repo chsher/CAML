@@ -84,7 +84,7 @@ optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=arg
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, verbose=True)
 
 #################### TRAIN ####################
-stats = learner.train_model(args.n_epochs, train_loader, val_loader, net, criterions, optimizer, device, scheduler, args.patience, args.outfile)
+stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile)
 
 with open(args.statsfile, 'wb') as f:
     pickle.dump(stats, f)
