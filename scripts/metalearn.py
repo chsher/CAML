@@ -2,7 +2,7 @@ import os
 import sys
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
-from caml.datasets import data_utils, maml
+from caml.datasets import tcga
 from caml.learn import metalearner
 
 import torch
@@ -19,11 +19,12 @@ import argparse
 
 METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031121.csv'
 
-CANCERS = ['ESCA', 'LIHC', 'OV']
+TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
+VAL_CANCERS = ['ESCA', 'LIHC', 'OV']
 
 PARAMS = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'PIN_MEMORY', 'N_WORKERS', 'OUT_DIM', 'LR', 'WD', 
 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'LOSS_STATS', 
-'HID_DIM', 'RES_DICT', 'DROPOUT', 'ETA',
+'VAL_CANCERS', 'HID_DIM', 'RES_DICT', 'DROPOUT', 'N_STEPS', 'ETA', 'N_CHOOSE',
 'TRAIN_SIZE', 'VAL_SIZE']
 
 HIDDEN_SIZE = 512
@@ -45,15 +46,18 @@ parser.add_argument('--n_epochs', type=int, default=20, help='number of epochs t
 parser.add_argument('--disable_cuda', type=bool, default=False, help='whether or not to use GPU')
 parser.add_argument('--num_tiles', type=int, default=400, help='number of tiles to include per slide')
 parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
-parser.add_argument('--cancers', nargs='*', default=CANCERS, help='list of cancers to include')
+parser.add_argument('--cancers', nargs='*', default=TRAIN_CANCERS, help='list of cancers to include')
 parser.add_argument('--infile', type=str, default=METADATA_FILEPATH, help='file path to metadata dataframe')
 parser.add_argument('--outfile', type=str, default='temp.pt', help='file path to save the model state dict')
 parser.add_argument('--statsfile', type=float, default='temp.pkl', help='file path to save the per-epoch val stats')
 # -- new params
+parser.add_argument('--val_cancers', nargs='*', default=VAL_CANCERS, help='list of cancers to include in the val set')
 parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
 parser.add_argument('--resfile', type=str, default=None, help='path to pre-trained resnet')
 parser.add_argument('--dropout', type=float, default=0.0, help='feed forward dropout')
+parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on val set')
 parser.add_argument('--eta', type=float, default=0.01, help='global learning rate')
+parser.add_argument('--n_choose', type=int, default=5, help='number of tasks to sample during every training epoch')
 # --
 args = parser.parse_args()
 
@@ -65,26 +69,30 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-#test run
-#train, val = data_utils.split_datasets_by_sample(df.loc[:2, :], 0.5, 0.5, unit='tile')
-
 trains = []
-vals = []
 for cancer in args.cancers:
-    tr, va = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+    tr = tcga.TCGAdataset(df, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
     trains.append(tr)
+
+vals = []
+for cancer in args.val_cancers:
+    va = tcga.TCGAdataset(df, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
     vals.append(va)
 
-train = maml.MAMLdataset(*trains)
-val = maml.MAMLdataset(*vals)
+train_loaders = []
+for tr in trains:
+    tr_loader = DataLoader(tr, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+    train_loaders.append(tr_loader)
 
-train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
-val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
+val_loaders = []
+for va in vals:
+    va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+    val_loaders.append(va_loader)
 
 values = [args.train_frac, args.val_frac, args.batch_size, args.pin_memory, args.n_workers, args.output_size, args.learning_rate, args.weight_decay, 
     args.patience, args.factor, args.n_epochs, args.disable_cuda, args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile,
-    args.hidden_size, args.resfile, args.dropout, args.eta]
-for k,v in zip(PARAMS, values + [len(train), len(val)]):
+    args.val_cancers, args.hidden_size, args.resfile, args.dropout, args.n_steps, args.eta, args.n_choose]
+for k,v in zip(PARAMS, values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals])]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
@@ -93,12 +101,10 @@ print(net)
 print(global_model)
 
 criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduction='none')]
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=args.patience, verbose=True)
 
 #################### TRAIN ####################
-stats = metalearner.train_model(args.n_epochs, train_loader, val_loader, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model, local_models, theta_global, criterions, args.device, args.patience, args.outfile)
-
-    learner.train_model(args.n_epochs, train_loader, val_loader, net, criterions, optimizer, device, scheduler, args.patience, args.outfile, ff=True)
+stats = metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.alpha, args.eta, args.weight_decay, args.factor, net, global_model, local_models, theta_global, criterions, args.device, args.n_steps, args.patience, args.outfile, 
+    n_choose=args.n_choose)
 
 with open(args.statsfile, 'wb') as f:
     pickle.dump(stats, f)
