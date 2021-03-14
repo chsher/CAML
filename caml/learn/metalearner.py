@@ -57,8 +57,11 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
     tally = 0
     old_loss = 1e9
     n_local = len(local_models)
+
     overall_loss_tracker = []
     overall_auc_tracker = []
+    y_tracker = []
+    y_prob_tracker = []
 
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -77,9 +80,11 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         for i in range(n_local):
             local_models[i].update_params(global_theta)
         
-        loss, auc = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, verbose)
+        loss, auc, ys, yps = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, verbose)
         overall_loss_tracker.append(loss)
         overall_auc_tracker.append(auc)
+        y_tracker.append(ys)
+        y_prob_tracker.append(yps)
         
         if loss < old_loss: 
             old_loss = loss 
@@ -99,7 +104,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             
             tally = 0
             
-    return overall_loss_tracker, overall_auc_tracker
+    return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, criterion, device, verbose=True, splits=['FwdOne', 'FwdTwo']):
     '''
@@ -168,7 +173,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
     net.eval()
     global_model.eval()
 
-    loss_tracker = torch.FloatTensor()
+    loss_tracker = np.array([])
     y_tracker = np.array([])
     y_prob_tracker = np.array([])
 
@@ -192,8 +197,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
                     y_pred = global_model(net(x.to(device)))
                     loss = criterion(y_pred, y.to(device))
-
-                    loss_tracker = torch.cat((loss_tracker, loss.detach().cpu()))
+                    loss_tracker = np.concatenate((loss_tracker, loss.detach().cpu().squeeze(-1).numpy()))
                     
                     y_prob = torch.sigmoid(y_pred.detach().cpu()).squeeze(-1).numpy()    
                     y_prob_tracker = np.concatenate((y_prob_tracker, y_prob))
@@ -212,4 +216,4 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
                 break
 
-    return torch.mean(loss_tracker).item(), auc_all
+    return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker
