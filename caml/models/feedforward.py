@@ -1,9 +1,10 @@
 import torch
 import torch.nn as nn
+from torchvision import models
 
 class FeedForwardNet(nn.Module):
     def __init__(self, input_size, hidden_size, output_size, initial_vals=None, dropout=0.0, bias=True):
-        super(Net, self).__init__()
+        super(FeedForwardNet, self).__init__()
         self.d = nn.Dropout(dropout)
         self.m = nn.Tanh()
         self.lnr1 = nn.Linear(input_size, hidden_size, bias=bias)
@@ -23,7 +24,7 @@ class FeedForwardNet(nn.Module):
 
 class ClassifierNet(nn.Module):
     def __init__(self, new_hidden_size, output_size, resfile=None, ffwdfile=None, freeze=True, dropout=0.0):
-        super(Classifier, self).__init__()
+        super(ClassifierNet, self).__init__()
         self.new_hidden_size = new_hidden_size
         self.output_size = output_size
         self.resfile = resfile
@@ -39,7 +40,7 @@ class ClassifierNet(nn.Module):
             saved_state = torch.load(self.resfile, map_location=lambda storage, loc: storage)
             self.resnet.load_state_dict(saved_state)
         
-        self.resnet.fc = model_utils.Identity()
+        self.resnet.fc = nn.Identity()
 
         if self.freeze:
             for param in self.resnet.parameters():

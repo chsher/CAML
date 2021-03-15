@@ -18,7 +18,7 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, n_steps=1, verbose=True, ff=False):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, n_steps=1, wait_time=1, ff=False, verbose=True):
     tally = 0
     old_loss = 1e9
     overall_loss_tracker = []
@@ -30,7 +30,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
     wd = optimizer.param_groups[0]['weight_decay']
 
     for n in tqdm(range(n_epochs)):
-        run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose)
+        run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time)
         
         if ff:
             global_theta = []
@@ -81,7 +81,7 @@ def cycle(iterable):
         except StopIteration:
             iterator = iter(iterable)
             
-def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, splits=['Train', 'Val'], wait_time=2):
+def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, wait_time=1, splits=['Train', 'Val']):
     total_loss = 0.0
     
     for t, ((x, y), (x_val, y_val)) in enumerate(zip(tqdm(train_loader), cycle(val_loader))):

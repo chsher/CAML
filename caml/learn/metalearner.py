@@ -24,7 +24,7 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
     net.fc = nn.Linear(hidden_size, output_size, bias=True)
 
     if resnet_file is not None:
-        saved_state = torch.load(state_dict_file, map_location=lambda storage, loc: storage)
+        saved_state = torch.load(resnet_file, map_location=lambda storage, loc: storage)
         net.load_state_dict(saved_state)
 
     net.fc = nn.Identity()
@@ -51,10 +51,10 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
 
     return net, global_model, local_models, global_theta
 
-def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, theta_global, criterions, device, n_steps, patience, outfile, 
-    n_choose=5, verbose=True, random_seed=31321):
+def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, patience, outfile, n_choose=5, verbose=True, random_seed=31321):
 
     tally = 0
+    best_n = 0
     old_loss = 1e9
     n_local = len(local_models)
 
@@ -87,6 +87,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         y_prob_tracker.append(yps)
         
         if loss < old_loss: 
+            best_n = n
             old_loss = loss 
             torch.save(global_model.state_dict(), outfile)
             print('----- SAVED MODEL -----')
@@ -103,7 +104,8 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             print('----- LR DECAY ----- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
             
             tally = 0
-            
+    
+    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
     return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, criterion, device, verbose=True, splits=['FwdOne', 'FwdTwo']):
@@ -112,8 +114,6 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     - currently only allows for Adam optimizer
     '''
     net.eval()
-    idx = int(x.shape[0] // 2)
-    num_tasks = int(x.shape[1])
 
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
@@ -143,10 +143,10 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 loss = criterion(y_pred, y.to(device))
                 loss.backward()
 
-                grads[0] = grads[0] + local_model.linear1.weight.grad.data
-                grads[1] = grads[1] + local_model.linear1.bias.grad.data
-                grads[2] = grads[2] + local_model.linear2.weight.grad.data
-                grads[3] = grads[3] + local_model.linear2.bias.grad.data
+                grads[0] = grads[0] + local_model.lnr1.weight.grad.data
+                grads[1] = grads[1] + local_model.lnr1.bias.grad.data
+                grads[2] = grads[2] + local_model.lnr2.weight.grad.data
+                grads[3] = grads[3] + local_model.lnr2.bias.grad.data
 
             else:
                 break
@@ -178,7 +178,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
     y_prob_tracker = np.array([])
 
     for t, val_loader in enumerate(tqdm(val_loaders)):
-        criterion = criterion[0]
+        criterion = criterions[0]
         global_model.update_params(global_theta)
         optimizer = torch.optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
@@ -193,7 +193,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
             elif i >= n_steps:
                 with torch.no_grad():
-                    criterion = criterion[1]
+                    criterion = criterions[1]
 
                     y_pred = global_model(net(x.to(device)))
                     loss = criterion(y_pred, y.to(device))
