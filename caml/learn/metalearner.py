@@ -35,7 +35,7 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
 
     global_model = feedforward.FeedForwardNet(hidden_size, new_hidden_size, output_size, dropout=dropout)
     
-    if maml_file is not None:
+    if maml_file is not None and os.path.exists(maml_file):
         saved_state = torch.load(maml_file, map_location=lambda storage, loc: storage)
         global_model.load_state_dict(saved_state)
     
@@ -51,7 +51,7 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
 
     return net, global_model, local_models, global_theta
 
-def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, patience, outfile, n_choose=5, verbose=True, random_seed=31321):
+def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, patience, outfile, n_choose=5, training=True, verbose=True, random_seed=31321):
 
     tally = 0
     best_n = 0
@@ -66,21 +66,24 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
     if random_seed is not None:
         np.random.seed(random_seed)
     
-    n_tasks = len(local_models)
-    if n_choose > n_tasks:
+    if n_choose > n_local:
         replace=True
     else:
         replace=False
 
     for n in tqdm(range(n_epochs)):
-        ts = np.random.choice(np.arange(n_tasks), n_choose, replace=replace)
+        if training:
+            ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
-        grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, criterions[0], device, verbose)
-        global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
-        for i in range(n_local):
-            local_models[i].update_params(global_theta)
+            grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, criterions[0], device, verbose)
+            
+            global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
+            
+            for i in range(n_local):
+                local_models[i].update_params(global_theta)
         
         loss, auc, ys, yps = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, verbose)
+        
         overall_loss_tracker.append(loss)
         overall_auc_tracker.append(auc)
         y_tracker.append(ys)
@@ -89,12 +92,13 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         if loss < old_loss: 
             best_n = n
             old_loss = loss 
-            torch.save(global_model.state_dict(), outfile)
-            print('----- SAVED MODEL -----')
+            if training:
+                torch.save(global_model.state_dict(), outfile)
+                print('----- SAVED MODEL -----')
         else:
             tally += 1
 
-        if tally > patience:
+        if training and tally > patience:
             saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
             global_model.load_state_dict(saved_state)
             print('----- RELOADED MODEL -----')
@@ -102,7 +106,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             alpha = factor * alpha
             eta = factor * eta
             print('----- LR DECAY ----- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
-            
+
             tally = 0
     
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
@@ -117,7 +121,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
 
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
-    for t in ts:
+    for t in tqdm(ts):
         local_model = local_models[t]
         local_model.train()
 
@@ -171,7 +175,6 @@ def run_global_train(global_theta, global_model, grads, eta):
 
 def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, verbose=True, splits=['Val', 'CumVal']):
     net.eval()
-    global_model.eval()
 
     loss_tracker = np.array([])
     y_tracker = np.array([])
@@ -184,6 +187,8 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
         for i, (x, y) in enumerate(val_loader):
             if i < n_steps:
+                global_model.train()
+                
                 y_pred = global_model(net(x.to(device)))
                 loss = criterion(y_pred, y.to(device))
 
@@ -191,7 +196,9 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                 optimizer.step()
                 optimizer.zero_grad()
 
-            elif i >= n_steps:
+            elif i >= n_steps or (n_steps == 0 and i == 0):
+                global_model.eval()
+                
                 with torch.no_grad():
                     criterion = criterions[1]
 
@@ -218,4 +225,5 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
                 break
 
+    global_model.update_params(global_theta)
     return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker

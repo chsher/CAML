@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 from torchvision import models
@@ -48,7 +49,7 @@ class ClassifierNet(nn.Module):
 
         self.ff = FeedForwardNet(self.hidden_size, self.new_hidden_size, self.output_size, dropout=self.dropout)
 
-        if self.ffwdfile is not None:
+        if self.ffwdfile is not None and os.path.exists(self.ffwdfile):
             saved_state = torch.load(self.ffwdfile, map_location=lambda storage, loc: storage)
             self.ff.load_state_dict(saved_state)
         
