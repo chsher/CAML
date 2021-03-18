@@ -4,6 +4,7 @@ from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 from caml.datasets import data_utils
 from caml.learn import learner
+from scripts import script_utils
 
 import torch
 import torch.nn as nn
@@ -27,33 +28,7 @@ PARAMS = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'P
           'TRAIN_SIZE', 'VAL_SIZE']
 
 #################### SETUP ####################
-parser = argparse.ArgumentParser(description='Embed H&E images using ResNet18 pre-trained on ImageNet')
-
-parser.add_argument('--train_frac', type=float, default=0.8, help='fraction of examples allocated to the train set')
-parser.add_argument('--val_frac', type=float, default=0.2, help='fraction of examples allocated to the val set')
-parser.add_argument('--batch_size', type=int, default=200, help='number of examples per batch')
-parser.add_argument('--wait_time', type=int, default=2, help='number of batches before backward pass')
-parser.add_argument('--max_batches', type=int, default=-1, help='max number of batches per epoch (-1: include all)')
-parser.add_argument('--pin_memory', type=bool, default=True, help='whether to pin memory during data loading')
-parser.add_argument('--n_workers', type=int, default=12, help='number of workers to use during data loading')
-
-parser.add_argument('--output_size', type=int, default=1, help='model output dimension')
-parser.add_argument('--learning_rate', type=float, default=0.0001, help='learning rate (step size)')
-parser.add_argument('--weight_decay', type=float, default=50.0, help='weight assigned to L2 regularization')
-parser.add_argument('--patience', type=int, default=1, help='number of epochs with no improvement before invoking the scheduler, model reloading')
-parser.add_argument('--factor', type=float, default=0.1, help='factor by which to reduce learning rate during scheduling')
-parser.add_argument('--n_epochs', type=int, default=10, help='number of epochs to train the model')
-parser.add_argument('--disable_cuda', type=bool, default=False, help='whether or not to use GPU')
-
-parser.add_argument('--num_tiles', type=int, default=100, help='number of tiles to include per slide')
-parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
-parser.add_argument('--cancers', nargs='*', default=CANCERS, help='list of cancers to include')
-parser.add_argument('--infile', type=str, default=METADATA_FILEPATH, help='file path to metadata dataframe')
-parser.add_argument('--outfile', type=str, default='temp.pt', help='file path to save the model state dict')
-parser.add_argument('--statsfile', type=str, default='temp.pkl', help='file path to save the per-epoch val stats')
-parser.add_argument('--training', type=bool, default=True, help='whether to train the model')
-
-args = parser.parse_args()
+args = script_utils.parse_args()
 
 if not args.disable_cuda and torch.cuda.is_available():
     device = torch.device('cuda')

@@ -51,7 +51,8 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
 
     return net, global_model, local_models, global_theta
 
-def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, patience, outfile, n_choose=5, training=True, verbose=True, random_seed=31321):
+def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, 
+                n_testtrain, patience, outfile, n_choose=5, training=True, verbose=True, random_seed=31321):
 
     tally = 0
     best_n = 0
@@ -82,7 +83,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             for i in range(n_local):
                 local_models[i].update_params(global_theta)
         
-        loss, auc, ys, yps = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, verbose)
+        loss, auc, ys, yps = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, verbose)
         
         overall_loss_tracker.append(loss)
         overall_auc_tracker.append(auc)
@@ -173,7 +174,8 @@ def run_global_train(global_theta, global_model, grads, eta):
 
     return global_theta, global_model
 
-def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, verbose=True, splits=['Val', 'CumVal']):
+def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, verbose=True, 
+                   splits=['Val', 'CumVal']):
     net.eval()
 
     loss_tracker = np.array([])
@@ -189,6 +191,8 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             if i < n_steps:
                 global_model.train()
                 
+                x = x[:n_testtrain, :, :, :]
+                y = y[:n_testtrain, :]
                 y_pred = global_model(net(x.to(device)))
                 loss = criterion(y_pred, y.to(device))
 

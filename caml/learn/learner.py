@@ -18,7 +18,8 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, n_steps=1, wait_time=1, max_batches=20, ff=False, training=True, verbose=True):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, n_steps=1, n_testtrain=50, 
+                wait_time=1, max_batches=20, grad_adapt=False, ff=True, training=True, verbose=True):
     tally = 0
     old_loss = 1e9
     overall_loss_tracker = []
@@ -33,11 +34,12 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         if training:
             run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time, max_batches)
         
-        if ff:
+        if grad_adapt:
             global_theta = []
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
-            loss, auc, ys, yps = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, verbose)
+            loss, auc, ys, yps = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
+                                                            n_testtrain, verbose)
         else:
             loss, auc, ys, yps = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, max_batches)
 
