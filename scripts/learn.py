@@ -65,7 +65,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 if args.training:
     stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile,
                                 n_steps=args.n_steps, n_testtrain=args.n_testtrain, wait_time=args.wait_time, max_batches=args.max_batches, grad_adapt=False, 
-                                training=args.training)
+                                training=args.training, ff=True)
 
     with open(args.statsfile, 'ab') as f:
         pickle.dump(stats, f)
@@ -91,7 +91,6 @@ val_loaders = []
 for va in vals:
     va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
     val_loaders.append(va_loader)
-    #print(len(va_loader))
             
 for s in [0, 1, 2, 3, 4]:
     for tt in [25, 50, 100, 150]:

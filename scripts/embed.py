@@ -3,6 +3,7 @@ import sys
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 from caml.datasets import data_utils
+from caml.models import feedforward
 from caml.learn import learner
 from scripts import script_utils
 
@@ -24,7 +25,7 @@ CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 
 PARAMS = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
           'OUT_DIM', 'LR', 'WD', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
-          'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'LOSS_STATS', 'TRAINING'
+          'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'LOSS_STATS', 'TRAINING',
           'TRAIN_SIZE', 'VAL_SIZE']
 
 #################### SETUP ####################
@@ -49,14 +50,15 @@ for k,v in zip(PARAMS, values + [len(train), len(val)]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = models.resnet18(pretrained=True)
-hidden_size = net.fc.weight.shape[1]
-net.fc = nn.Linear(hidden_size, args.output_size, bias=True)
+#net = models.resnet18(pretrained=True)
+#hidden_size = net.fc.weight.shape[1]
+#net.fc = nn.Linear(hidden_size, args.output_size, bias=True)
 
-if os.path.exists(args.outfile):
-    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
-    net.load_state_dict(saved_state)
+#if os.path.exists(args.outfile):
+#    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
+#    net.load_state_dict(saved_state)
 
+net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout)
 net.to(device)
 print(net)
 
@@ -65,8 +67,16 @@ optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=arg
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, verbose=True)
 
 #################### TRAIN ####################
-stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, 
+if args.training:
+    stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, 
                             wait_time=args.wait_time, max_batches=args.max_batches, training=args.training)
 
-with open(args.statsfile, 'wb') as f:
-    pickle.dump(stats, f)
+    with open(args.statsfile, 'wb') as f:
+        pickle.dump(stats, f)
+
+else:
+    stats = learner.run_validation_epoch(0, val_loader, net, criterions[1], device, verbose=True, max_batches=-1)
+    
+    with open(args.statsfile, 'wb') as f:
+        pickle.dump(stats, f)
+                                 
