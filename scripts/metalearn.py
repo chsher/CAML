@@ -41,12 +41,12 @@ df = pd.read_csv(args.infile)
 
 trains = []
 for cancer in args.cancers:
-    tr = tcga.TCGAdataset(df, transform=data_utils.transform, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+    tr = tcga.TCGAdataset(df, transform=data_utils.TRANSFORMER, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
     trains.append(tr)
 
 vals = []
 for cancer in args.val_cancers:
-    va = tcga.TCGAdataset(df, transform=transforms.Compose([data_utils.normalize]), num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+    va = tcga.TCGAdataset(df, transform=transforms.Compose([data_utils.NORMALIZER]), num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
     vals.append(va)
 
 train_loaders = []

@@ -22,17 +22,18 @@ set_image_backend('accimage')
 
 #################### IMAGE TRANSFORMING ####################
 # ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
-normalize = transforms.Normalize(mean=[0.7156, 0.5272, 0.6674], std=[0.2002, 0.2330, 0.1982]) 
+NORMALIZER = transforms.Normalize(mean=[0.7156, 0.5272, 0.6674], 
+                                  std=[0.2002, 0.2330, 0.1982]) 
 
-transform = transforms.Compose([transforms.ToPILImage(),
+TRANSFORMER = transforms.Compose([transforms.ToPILImage(),
                                 transforms.RandomVerticalFlip(),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ColorJitter(hue=0.02, saturation=0.1),
-                                transforms.ToTensor(), normalize])
+                                transforms.ToTensor(), NORMALIZE])
 
 #################### DATA SPLITTING ####################
-def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, 
-                             transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
+def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, renormalize=False,
+                             transform=TRANSFORMER, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
     '''
     Note: 
         - currently only handles TCGAdataset datasets
@@ -70,12 +71,25 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     else:
         dfs.append(filter_df(df, idxs=idxs[val_start:]))
 
+    if renormalize:
+        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False)
+        mu, sig = compute_stats(ds)
+        normalizer = transforms.Normalize(mean=mu, std=sig) 
+        transformer = transforms.Compose([transforms.ToPILImage(),
+                                transforms.RandomVerticalFlip(),
+                                transforms.RandomHorizontalFlip(),
+                                transforms.ColorJitter(hue=0.02, saturation=0.1),
+                                transforms.ToTensor(), normalizer])
+    else:
+        normalizer = NORMALIZER
+        transformer = TRANSFORMER
+        
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transform, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transformer, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
         else:
-            ds = tcga.TCGAdataset(d, transforms.Compose([normalize]), min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transforms.Compose([normalizer]), min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
         dss.append(ds)
         
     return dss
@@ -99,7 +113,7 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None):
     return df
 
 #################### STATS COMPUTING ####################
-def compute_stats(train_dataset, batch_size=50, n_batches=100):
+def compute_stats(train_dataset, batch_size=100, n_batches=1000):
     loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True, shuffle=True)
     
     tracker = []

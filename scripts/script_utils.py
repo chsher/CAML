@@ -8,6 +8,7 @@ VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC
 def parse_args():
     parser = argparse.ArgumentParser(description='WGD classifier')
 
+    parser.add_argument('--renormalize', default=False, action='store_true', help='whether to recompute mean and std of train set')
     parser.add_argument('--train_frac', type=float, default=0.8, help='fraction of examples allocated to the train set')
     parser.add_argument('--val_frac', type=float, default=0.2, help='fraction of examples allocated to the val set')
     parser.add_argument('--batch_size', type=int, default=200, help='number of examples per batch')
