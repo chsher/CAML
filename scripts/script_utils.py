@@ -5,6 +5,11 @@ METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
+PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
+          'OUT_DIM', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
+          'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 'TRAINING',
+          'VAL_CANCERS', 'HID_DIM', 'RES_DICT', 'N_STEPS', 'N_TESTTRAIN', 'ETA', 'N_CHOOSE']
+
 def parse_args():
     parser = argparse.ArgumentParser(description='WGD classifier')
 
@@ -20,6 +25,7 @@ def parse_args():
     parser.add_argument('--output_size', type=int, default=1, help='model output dimension')
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='local learning rate')
     parser.add_argument('--weight_decay', type=float, default=0.0, help='weight assigned to L2 regularization')
+    parser.add_argument('--dropout', type=float, default=0.0, help='feed forward dropout')
     parser.add_argument('--patience', type=int, default=1, help='number of epochs with no improvement before invoking the scheduler, model reloading')
     parser.add_argument('--factor', type=float, default=0.1, help='factor by which to reduce learning rate during scheduling')
     parser.add_argument('--n_epochs', type=int, default=20, help='number of epochs to train the model')
@@ -37,7 +43,6 @@ def parse_args():
     parser.add_argument('--val_cancers', nargs='*', default=VAL_CANCERS, help='list of cancers to include in the val set')
     parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
     parser.add_argument('--resfile', type=str, default=None, help='path to pre-trained resnet')
-    parser.add_argument('--dropout', type=float, default=0.0, help='feed forward dropout')
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on val set')
     parser.add_argument('--n_testtrain', type=int, default=50, help='number of examples on which to train during test')
     # ----------------

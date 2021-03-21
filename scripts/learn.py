@@ -24,12 +24,6 @@ METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
-PARAMS = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
-          'OUT_DIM', 'LR', 'WD', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
-          'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'LOSS_STATS', 'TRAINING',
-          'VAL_CANCERS', 'HID_DIM', 'RES_DICT', 'DROPOUT', 'N_STEPS', 'N_TESTTRAIN',
-          'TRAIN_SIZE', 'VAL_SIZE']
-
 #################### SETUP ####################
 args = script_utils.parse_args()
 
@@ -45,11 +39,11 @@ train, val = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_f
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 
-values = [args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
-          args.output_size, args.learning_rate, args.weight_decay, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
+values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
+          args.output_size, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, args.training,
-          ', '.join(args.val_cancers), args.hidden_size, args.resfile, args.dropout, args.n_steps, args.n_testtrain]
-for k,v in zip(PARAMS, values + [len(train), len(val)]):
+          ', '.join(args.val_cancers), args.hidden_size, args.resfile, args.n_steps, args.n_testtrain]
+for k,v in zip(script_utils.PARAMS[:-2] + ['TRAIN_SIZE', 'VAL_SIZE'], values + [len(train), len(val)]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################

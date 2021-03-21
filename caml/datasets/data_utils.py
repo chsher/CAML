@@ -6,6 +6,7 @@ from caml.datasets import tcga
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 
 import torch
 import torch.nn as nn
@@ -29,7 +30,7 @@ TRANSFORMER = transforms.Compose([transforms.ToPILImage(),
                                 transforms.RandomVerticalFlip(),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ColorJitter(hue=0.02, saturation=0.1),
-                                transforms.ToTensor(), NORMALIZE])
+                                transforms.ToTensor(), NORMALIZER])
 
 #################### DATA SPLITTING ####################
 def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, renormalize=False,
@@ -92,7 +93,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
             ds = tcga.TCGAdataset(d, transforms.Compose([normalizer]), min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
         dss.append(ds)
         
-    return dss
+    return dss, normalizer.mean, normalizer.std
 
 #################### DATA FILTERING ####################
 def filter_df(df, min_tiles=None, cancers=None, idxs=None):

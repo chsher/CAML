@@ -22,12 +22,6 @@ METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
-PARAMS = ['TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
-          'OUT_DIM', 'LR', 'WD', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
-          'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'LOSS_STATS', 'TRAINING',
-          'VAL_CANCERS', 'HID_DIM', 'RES_DICT', 'DROPOUT', 'N_STEPS', 'N_TESTTRAIN', 'ETA', 'N_CHOOSE',
-          'TRAIN_SIZE', 'VAL_SIZE']
-
 #################### SETUP ####################
 args = script_utils.parse_args()
 
@@ -59,11 +53,11 @@ for va in vals:
     va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
     val_loaders.append(va_loader)
 
-values = [args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
-          args.output_size, args.learning_rate, args.weight_decay, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
+values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
+          args.output_size, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, args.training,
-          ', '.join(args.val_cancers), args.hidden_size, args.resfile, args.dropout, args.n_steps, args.n_testtrain, args.eta, args.n_choose]
-for k,v in zip(PARAMS, values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals])]):
+          ', '.join(args.val_cancers), args.hidden_size, args.resfile, args.n_steps, args.n_testtrain, args.eta, args.n_choose]
+for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals])]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
