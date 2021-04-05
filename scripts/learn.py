@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 from torchvision import models, transforms
 
 import pickle
@@ -19,10 +19,10 @@ import numpy as np
 import pandas as pd
 import argparse
 
-METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
+#METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 
-TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
-VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
+#TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
+#VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
 #################### SETUP ####################
 args = script_utils.parse_args()
@@ -35,15 +35,15 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-train, val = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
+[train, val], mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, renormalize=args.renormalize)
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
-          args.output_size, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
-          args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, args.training,
-          ', '.join(args.val_cancers), args.hidden_size, args.resfile, args.n_steps, args.n_testtrain]
-for k,v in zip(script_utils.PARAMS[:-2] + ['TRAIN_SIZE', 'VAL_SIZE'], values + [len(train), len(val)]):
+          args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
+          args.output_size, args.min_tiles, args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
+          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.resfile, args.n_steps, args.n_testtrain, args.grad_adapt]
+for k,v in zip(script_utils.PARAMS[:-2] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
@@ -65,32 +65,37 @@ if args.training:
         pickle.dump(stats, f)
 
 #################### VAL - NO ADAPT ####################
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout)
-net.to(device)
+if args.test_val:
+    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout)
+    net.to(device)
 
-va = tcga.TCGAdataset(df, transform=transforms.Compose([data_utils.normalize]), num_tiles=args.num_tiles, unit=args.unit, cancers=args.val_cancers)
-va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+    if not args.grad_adapt:
+        va = tcga.TCGAdataset(df, transform=transforms.Compose([transforms.Normalize(mean=mu, std=sig)]), min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.val_cancers)
+        va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 
-stats = learner.run_validation_epoch(0, va_loader, net, criterions[1], device, max_batches=args.max_batches * 10)
-with open(args.statsfile, 'ab') as f:
-    pickle.dump([0, 0, stats], f)
-
-#################### VAL - ADAPT ####################
-vals = []
-for cancer in args.val_cancers:
-    va = tcga.TCGAdataset(df, transform=transforms.Compose([data_utils.normalize]), num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
-    vals.append(va)
-
-val_loaders = []
-for va in vals:
-    va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
-    val_loaders.append(va_loader)
-            
-for s in [0, 1, 2, 3, 4]:
-    for tt in [25, 50, 100, 150]:
-        print('N_STEPS:', s, 'N_TESTTRAIN:', tt)
-        stats = learner.train_model(1, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, args.patience, args.outfile,
-                                    n_steps=s, n_testtrain=tt, wait_time=args.wait_time, max_batches=args.max_batches, grad_adapt=True, training=False)
+        stats = learner.train_model(1, train_loader, [va_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile,
+                                    max_batches=args.max_batches, grad_adapt=args.grad_adapt, training=False)
 
         with open(args.statsfile, 'ab') as f:
-            pickle.dump([s, tt, stats], f)
+            pickle.dump([0, 0, stats], f)
+
+#################### VAL - ADAPT ####################
+    elif args.grad_adapt:
+        vals = []
+        for cancer in args.val_cancers:
+            va = tcga.TCGAdataset(df, transform=transforms.Compose([transforms.Normalize(mean=mu, std=sig)]), min_tiles, args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+            vals.append(va)
+
+        val_loaders = []
+        for va in vals:
+            va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+            val_loaders.append(va_loader)
+                    
+        for s in [0, 1, 2, 3, 4]:
+            for tt in [25, 50, 100, 150]:
+                print('N_STEPS:', s, 'N_TESTTRAIN:', tt)
+                stats = learner.train_model(1, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, args.patience, args.outfile,
+                                            n_steps=s, n_testtrain=tt, wait_time=args.wait_time, max_batches=args.max_batches, grad_adapt=args.grad_adapt, training=False)
+
+                with open(args.statsfile, 'ab') as f:
+                    pickle.dump([s, tt, stats], f)

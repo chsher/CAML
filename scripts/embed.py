@@ -19,9 +19,9 @@ import numpy as np
 import pandas as pd
 import argparse
 
-METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
+#METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 
-CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
+#CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 
 #################### SETUP ####################
 args = script_utils.parse_args()
@@ -34,15 +34,14 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-[train, val], mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers,
-                                                            renormalize=args.renormalize)
+[train, val], mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, renormalize=args.renormalize)
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
-          args.output_size, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
-          args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, args.training]
-for k,v in zip(script_utils.PARAMS[:-7] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
+          args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
+          args.output_size, args.min_tiles, args.num_tiles, args.unit, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile]
+for k,v in zip(script_utils.PARAMS[:-9] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
@@ -54,10 +53,7 @@ for k,v in zip(script_utils.PARAMS[:-7] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU',
 #    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
 #    net.load_state_dict(saved_state)
 
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, dropout=args.dropout)
-if os.path.exists(args.outfile):
-    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
-    net.load_state_dict(saved_state)
+net = feedforward.ClassifierNet(None, args.output_size, resfile=args.outfile, freeze=False, dropout=args.dropout)
 net.to(device)
 print(net)
 
@@ -66,16 +62,8 @@ optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=arg
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, verbose=True)
 
 #################### TRAIN ####################
-if args.training:
-    stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, 
-                                wait_time=args.wait_time, max_batches=args.max_batches, training=args.training)
+stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, 
+                            wait_time=args.wait_time, max_batches=args.max_batches, training=args.training)
 
-    with open(args.statsfile, 'wb') as f:
-        pickle.dump(stats, f)
-
-else:
-    stats = learner.run_validation_epoch(0, val_loader, net, criterions[1], device, verbose=True, max_batches=-1)
-    
-    with open(args.statsfile, 'wb') as f:
-        pickle.dump(stats, f)
-                                 
+with open(args.statsfile, 'wb') as f:
+    pickle.dump(stats, f)             

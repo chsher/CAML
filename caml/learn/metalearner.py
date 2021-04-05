@@ -18,12 +18,12 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Task {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None):
-    net = models.resnet18(pretrained=False)
-    hidden_size = net.fc.weight.shape[1]
-    net.fc = nn.Linear(hidden_size, output_size, bias=True)
+def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None):
+    net = models.resnet18(pretrained=True)
+    embed_size = net.fc.weight.shape[1]
+    net.fc = nn.Linear(embed_size, output_size, bias=True)
 
-    if resnet_file is not None:
+    if resnet_file is not None and os.path.exists(resnet_file):
         saved_state = torch.load(resnet_file, map_location=lambda storage, loc: storage)
         net.load_state_dict(saved_state)
 
@@ -33,7 +33,7 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
     for param in net.parameters():
         param.requires_grad = False
 
-    global_model = feedforward.FeedForwardNet(hidden_size, new_hidden_size, output_size, dropout=dropout)
+    global_model = feedforward.FeedForwardNet(embed_size, hidden_size, output_size, dropout=dropout)
     
     if maml_file is not None and os.path.exists(maml_file):
         saved_state = torch.load(maml_file, map_location=lambda storage, loc: storage)
@@ -47,7 +47,7 @@ def init_models(new_hidden_size, output_size, n_local, device, dropout=0.0, resn
 
     local_models = []
     for i in range(n_local):
-        local_models.append(feedforward.FeedForwardNet(hidden_size, new_hidden_size, output_size, global_theta, dropout=dropout).to(device)) 
+        local_models.append(feedforward.FeedForwardNet(embed_size, hidden_size, output_size, global_theta, dropout=dropout).to(device)) 
 
     return net, global_model, local_models, global_theta
 
@@ -68,15 +68,15 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         np.random.seed(random_seed)
     
     if n_choose > n_local:
-        replace=True
+        replace = True
     else:
-        replace=False
+        replace = False
 
     for n in tqdm(range(n_epochs)):
         if training:
             ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
-            grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, criterions[0], device, verbose)
+            grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, verbose)
             
             global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
             
@@ -93,27 +93,31 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         if loss < old_loss: 
             best_n = n
             old_loss = loss 
-            if training:
+
+        if training:
+            if loss < old_loss: 
                 torch.save(global_model.state_dict(), outfile)
                 print('----- SAVED MODEL -----')
-        else:
-            tally += 1
+                tally = 0
+            else:
+                tally += 1
 
-        if training and tally > patience:
-            saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
-            global_model.load_state_dict(saved_state)
-            print('----- RELOADED MODEL -----')
+            if tally > patience:
+                saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
+                global_model.load_state_dict(saved_state)
+                print('----- RELOADED MODEL -----')
 
-            alpha = factor * alpha
-            eta = factor * eta
-            print('----- LR DECAY ----- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
+                alpha = factor * alpha
+                eta = factor * eta
+                print('----- LR DECAY ----- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
 
-            tally = 0
+                tally = 0
     
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
+
     return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
-def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, criterion, device, verbose=True, splits=['FwdOne', 'FwdTwo']):
+def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterion, device, verbose=True, splits=['FwdOne', 'FwdTwo']):
     '''
     Note: 
     - currently only allows for Adam optimizer
@@ -153,6 +157,8 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 grads[2] = grads[2] + local_model.lnr2.weight.grad.data
                 grads[3] = grads[3] + local_model.lnr2.bias.grad.data
 
+                local_model.update_params(global_theta)
+
             else:
                 break
         
@@ -179,8 +185,8 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
     net.eval()
 
     loss_tracker = np.array([])
-    y_tracker = np.array([])
     y_prob_tracker = np.array([])
+    y_tracker = np.array([])
 
     for t, val_loader in enumerate(tqdm(val_loaders)):
         criterion = criterions[0]
@@ -191,8 +197,8 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             if i < n_steps:
                 global_model.train()
                 
-                x = x[:n_testtrain, :, :, :]
-                y = y[:n_testtrain, :]
+                x = x[:n_testtrain, ]
+                y = y[:n_testtrain, ]
                 y_pred = global_model(net(x.to(device)))
                 loss = criterion(y_pred, y.to(device))
 
@@ -230,4 +236,5 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                 break
 
     global_model.update_params(global_theta)
+
     return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker

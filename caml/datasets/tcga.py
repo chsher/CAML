@@ -28,8 +28,8 @@ class TCGAdataset(Dataset):
         Args:
             df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
             transform (torchvision.transforms.Compose): pytorch tensor transformations
-            min_tiles (int): minimum number of tiles for patient to be included during sampling
-            num_tiles (int): number of tiles to keep (tile) or sample (slide) per patient
+            min_tiles (int): min number of tiles for patient to be included during sampling
+            num_tiles (int): max number of tiles to retain per patient
             cancers (list or None): cancers to include in the dataset; if None, include all
             label (str): column name in df for label annotation
             unit (str): tile-level or slide-level inputs

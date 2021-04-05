@@ -49,15 +49,18 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         y_tracker.append(ys)
         y_prob_tracker.append(yps)
         
+        if loss < old_loss: 
+            best_n = n
+            old_loss = loss 
+
         if training:
             if loss < old_loss: 
-                best_n = n
-                old_loss = loss 
                 if ff:
                     torch.save(net.ff.state_dict(), outfile)
                 else:
                     torch.save(net.state_dict(), outfile)
                 print('----- SAVED MODEL -----')
+                tally = 0
             else:
                 tally += 1
 
@@ -74,6 +77,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                 tally = 0
     
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
+
     return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def cycle(iterable):
@@ -131,9 +135,10 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
 
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, max_batches=20, splits=['Val', 'CumVal']):
     net.eval()
+    
     loss_tracker = np.array([])
-    y_tracker = np.array([])
     y_prob_tracker = np.array([])
+    y_tracker = np.array([])
 
     for t, (x_val, y_val) in enumerate(tqdm(val_loader)):
         if max_batches != -1 and t >= max_batches:
