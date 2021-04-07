@@ -18,7 +18,7 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Task {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None):
+def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None, pool=None):
     net = models.resnet18(pretrained=True)
     embed_size = net.fc.weight.shape[1]
     net.fc = nn.Linear(embed_size, output_size, bias=True)
@@ -33,7 +33,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
     for param in net.parameters():
         param.requires_grad = False
 
-    global_model = feedforward.FeedForwardNet(embed_size, hidden_size, output_size, dropout=dropout)
+    global_model = feedforward.FeedForwardNet(embed_size, hidden_size, output_size, dropout=dropout, pool=pool)
     
     if maml_file is not None and os.path.exists(maml_file):
         saved_state = torch.load(maml_file, map_location=lambda storage, loc: storage)
@@ -47,7 +47,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
 
     local_models = []
     for i in range(n_local):
-        local_models.append(feedforward.FeedForwardNet(embed_size, hidden_size, output_size, global_theta, dropout=dropout).to(device)) 
+        local_models.append(feedforward.FeedForwardNet(embed_size, hidden_size, output_size, global_theta, dropout=dropout, pool=pool).to(device)) 
 
     return net, global_model, local_models, global_theta
 

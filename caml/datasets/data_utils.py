@@ -34,11 +34,13 @@ TRANSFORMER = transforms.Compose([transforms.ToPILImage(),
 
 def build_transforms(mu, sig):
     normalizer = transforms.Normalize(mean=mu, std=sig) 
+    
     transformer = transforms.Compose([transforms.ToPILImage(),
                                 transforms.RandomVerticalFlip(),
                                 transforms.RandomHorizontalFlip(),
                                 transforms.ColorJitter(hue=0.02, saturation=0.1),
                                 transforms.ToTensor(), normalizer])
+
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
@@ -84,25 +86,20 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     if renormalize:
         ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False)
         mu, sig = compute_stats(ds)
-        normalizer = transforms.Normalize(mean=mu, std=sig) 
-        transformer = transforms.Compose([transforms.ToPILImage(),
-                                transforms.RandomVerticalFlip(),
-                                transforms.RandomHorizontalFlip(),
-                                transforms.ColorJitter(hue=0.02, saturation=0.1),
-                                transforms.ToTensor(), normalizer])
+        transform_train, transform_val = build_transforms(mu, sig)
     else:
-        normalizer = NORMALIZER
-        transformer = TRANSFORMER
+        transform_train = TRANSFORMER
+        transform_val = transforms.Compose([NORMALIZER])
         
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transformer, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
         else:
-            ds = tcga.TCGAdataset(d, transforms.Compose([normalizer]), min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
         dss.append(ds)
         
-    return dss, normalizer.mean, normalizer.std
+    return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
 
 #################### DATA FILTERING ####################
 def filter_df(df, min_tiles=None, cancers=None, idxs=None):

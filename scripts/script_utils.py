@@ -7,8 +7,14 @@ VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC
 
 PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
           'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
-          'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'UNIT', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
+          'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
           'VAL_CANCERS', 'LEARN_VAL', 'HID_DIM', 'RES_DICT', 'N_STEPS', 'N_TESTTRAIN', 'GRAD_ADAPT', 'ETA', 'N_CHOOSE']
+
+POOL_KEY = {
+    'max': torch.max,
+    'mean': torch.mean,
+    'lse': torch.logsumexp
+}
 
 def parse_args():
     parser = argparse.ArgumentParser(description='WGD classifier')
@@ -38,6 +44,7 @@ def parse_args():
     parser.add_argument('--min_tiles', type=int, default=1, help='min number of tiles for patient to be included during sampling')
     parser.add_argument('--num_tiles', type=int, default=400, help='max number of tiles to retain per patient')
     parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
+    parser.add_argument('--pool', type=str, default=None, help='pooling mechanism to use if input unit is slide')
     parser.add_argument('--cancers', nargs='*', default=TRAIN_CANCERS, help='list of cancers to include [in the train set]')
     parser.add_argument('--infile', type=str, default=METADATA_FILEPATH, help='file path to metadata dataframe')
     parser.add_argument('--outfile', type=str, default='temp.pt', help='file path to save the model state dict')
@@ -57,5 +64,7 @@ def parse_args():
     parser.add_argument('--n_choose', type=int, default=5, help='number of tasks to sample during every training epoch')
 
     args = parser.parse_args()
+    
+    args.pool = POOL_KEY.get(args.pool, None)
     
     return args
