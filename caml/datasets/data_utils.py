@@ -34,7 +34,7 @@ TRANSFORMER = transforms.Compose([transforms.ToPILImage(),
 
 def build_transforms(mu, sig):
     normalizer = transforms.Normalize(mean=mu, std=sig) 
-    
+
     transformer = transforms.Compose([transforms.ToPILImage(),
                                 transforms.RandomVerticalFlip(),
                                 transforms.RandomHorizontalFlip(),
@@ -45,7 +45,7 @@ def build_transforms(mu, sig):
     
 #################### DATA SPLITTING ####################
 def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, renormalize=False,
-                             transform=TRANSFORMER, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
+                             min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
     '''
     Note: 
         - currently only handles TCGAdataset datasets

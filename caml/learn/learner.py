@@ -132,7 +132,6 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
                 if verbose:
                     print(PRINT_STMT.format(epoch_num, t, loss.detach().cpu(), auc, loss_val, auc_val, *splits))
 
-
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, max_batches=20, splits=['Val', 'CumVal']):
     net.eval()
     
