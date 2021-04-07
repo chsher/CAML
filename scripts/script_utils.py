@@ -1,3 +1,4 @@
+import torch
 import argparse
 
 METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
@@ -47,8 +48,8 @@ def parse_args():
     parser.add_argument('--pool', type=str, default=None, help='pooling mechanism to use if input unit is slide')
     parser.add_argument('--cancers', nargs='*', default=TRAIN_CANCERS, help='list of cancers to include [in the train set]')
     parser.add_argument('--infile', type=str, default=METADATA_FILEPATH, help='file path to metadata dataframe')
-    parser.add_argument('--outfile', type=str, default='temp.pt', help='file path to save the model state dict')
-    parser.add_argument('--statsfile', type=str, default='temp.pkl', help='file path to save the per-epoch val stats')
+    parser.add_argument('--outfile', type=str, default='/home/schao/temp.pt', help='file path to save the model state dict')
+    parser.add_argument('--statsfile', type=str, default='/home/schao/temp.pkl', help='file path to save the per-epoch val stats')
     
     # task parameters
     parser.add_argument('--val_cancers', nargs='*', default=VAL_CANCERS, help='list of cancers to include in the val set')

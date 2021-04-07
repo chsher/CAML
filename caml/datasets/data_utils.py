@@ -84,7 +84,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
         dfs.append(filter_df(df, idxs=idxs[val_start:]))
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False)
+        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
@@ -120,26 +120,31 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None):
     return df
 
 #################### STATS COMPUTING ####################
-def compute_stats(train_dataset, batch_size=100, n_batches=1000):
-    loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True, shuffle=True)
+def compute_stats(train_dataset, batch_size=200, max_batches=5, pin_memory=False, num_workers=12):
+    loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True, shuffle=True,
+                        pin_memory=pin_memory, num_workers=num_workers)
     
     tracker = []
-    for i, (x, y) in tqdm(enumerate(loader)):
-        if i >= n_batches:
-            break
-        else:
-            tracker.append(torch.mean(x, dim=[0, 2, 3]))
+    with tqdm(total=min(len(loader), max_batches)) as pbar:
+        for i, (x, y) in enumerate(loader):
+            if i >= max_batches:
+                break
+            else:
+                tracker.append(torch.mean(x, dim=[0, 2, 3]))
+            pbar.update(1)
             
     means = torch.stack(tracker)
     mu = torch.mean(means, dim=0)
     
     tracker2 = []
-    for i, (x, y) in tqdm(enumerate(loader)):
-        if i >= n_batches:
-            break
-        else:
-            t = torch.pow(x.transpose(1, -1) - mu, 2) # swapped dims 1 and 3 to enable broadcasting
-            tracker2.append(torch.mean(t, dim=[0, 1, 2]))
+    with tqdm(total=min(len(loader), max_batches)) as pbar:
+        for i, (x, y) in enumerate(loader):
+            if i >= max_batches:
+                break
+            else:
+                t = torch.pow(x.transpose(1, -1) - mu, 2) # swapped dims 1 and 3 to enable broadcasting
+                tracker2.append(torch.mean(t, dim=[0, 1, 2]))
+            pbar.update(1)
             
     variances = torch.stack(tracker2)
     var = torch.mean(variances, dim=0)
