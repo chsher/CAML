@@ -35,9 +35,17 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-[train, val], mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, renormalize=args.renormalize)
+datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, min_tiles=args.min_tiles, num_tiles=args.num_tiles,
+                                                        unit=args.unit, cancers=args.cancers, renormalize=args.renormalize)
+if args.test_val:
+    train = datasets[0]
+    transform_val = transforms.Compose([transforms.Normalize(mean=mu, std=sig)])
+    val = tcga.TCGAdataset(df, transform=transform_val, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.val_cancers)
+else:
+    train, val = datasets
+
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
-val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
@@ -47,7 +55,7 @@ for k,v in zip(script_utils.PARAMS[:-2] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU',
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool)
+net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, freeze=True, pool=args.pool)
 net.to(device)
 print(net)
 
@@ -56,14 +64,13 @@ optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=arg
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, verbose=True)
 
 #################### TRAIN ####################
-if args.training:
-    stats = learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile,
-                                n_steps=0, n_testtrain=0, wait_time=args.wait_time, max_batches=args.max_batches, grad_adapt=False, training=args.training, ff=True)
+learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile,
+                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=True)
 
-    with open(args.statsfile, 'ab') as f:
-        pickle.dump(stats, f)
+#with open(args.statsfile, 'ab') as f:
+#    pickle.dump(stats, f)
 
-#################### VAL - NO ADAPT ####################
+'''#################### VAL - NO ADAPT ####################
 if args.test_val:
     transform_val = transforms.Compose([transforms.Normalize(mean=mu, std=sig)])
 
@@ -99,4 +106,4 @@ if args.test_val:
                                             n_steps=s, n_testtrain=tt, max_batches=args.max_batches, grad_adapt=args.grad_adapt, training=False)
 
                 with open(args.statsfile, 'ab') as f:
-                    pickle.dump([s, tt, stats], f)
+                    pickle.dump([s, tt, stats], f)'''

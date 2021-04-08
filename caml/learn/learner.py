@@ -22,8 +22,8 @@ PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, 
 def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile,
                 n_steps=1, n_testtrain=50, wait_time=1, max_batches=20, grad_adapt=False, ff=False, training=True, verbose=True):
     tally = 0
-    best_n = 0
-    old_loss = 1e9
+    best_n, best_auc, best_loss = 0, 0, 1e9
+
     #overall_loss_tracker = []
     #overall_auc_tracker = []
     #y_tracker = []
@@ -41,7 +41,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
             stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
-                                                            n_testtrain, verbose)
+                                               n_testtrain, verbose)
         else:
             stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches)
 
@@ -51,12 +51,13 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         #y_tracker.append(ys)
         #y_prob_tracker.append(yps)
         
-        loss = stats[0]
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
 
+        loss = stats[0]
+        
         if training:
-            if loss < old_loss: 
+            if loss < best_loss: 
                 if ff:
                     torch.save(net.ff.state_dict(), outfile)
                 else:
@@ -78,12 +79,14 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                 print('----- RELOADED MODEL -----')
                 tally = 0
                 
-        if loss < old_loss: 
+        if loss < best_loss: 
             best_n = n
-            old_loss = loss 
+            best_loss = loss 
+            best_auc = stats[1]
+            
+    #print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
+    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
     
-    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
-
     #return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def cycle(iterable):

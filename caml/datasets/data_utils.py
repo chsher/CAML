@@ -73,15 +73,18 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     idxs = np.arange(df.shape[0])
     np.random.shuffle(idxs)
     
-    val_start = int(train_frac * len(idxs))
-    dfs = [filter_df(df, idxs=idxs[:val_start])]
-
-    if train_frac + val_frac != 1:
-        test_start = int((train_frac + val_frac) * len(idxs))
-        dfs.append(filter_df(df, idxs=idxs[val_start:test_start]))
-        dfs.append(filter_df(df, idxs=idxs[test_start:]))
+    if train_frac < 1:
+        val_start = int(train_frac * len(idxs))
+        dfs = [filter_df(df, idxs=idxs[:val_start])]
+        
+        if train_frac + val_frac < 1:
+            test_start = int((train_frac + val_frac) * len(idxs))
+            dfs.append(filter_df(df, idxs=idxs[val_start:test_start]))
+            dfs.append(filter_df(df, idxs=idxs[test_start:]))
+        else:
+            dfs.append(filter_df(df, idxs=idxs[val_start:]))
     else:
-        dfs.append(filter_df(df, idxs=idxs[val_start:]))
+        dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
         ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False)
