@@ -120,7 +120,7 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None):
     return df
 
 #################### STATS COMPUTING ####################
-def compute_stats(train_dataset, batch_size=200, max_batches=5, pin_memory=False, num_workers=12):
+def compute_stats(train_dataset, batch_size=200, max_batches=240, pin_memory=False, num_workers=12):
     loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True, shuffle=True,
                         pin_memory=pin_memory, num_workers=num_workers)
     

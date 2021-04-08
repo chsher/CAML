@@ -11,6 +11,7 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from torchvision import models
 
+import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -18,15 +19,15 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, n_steps=1, n_testtrain=50, 
-                wait_time=1, max_batches=20, grad_adapt=False, ff=False, training=True, verbose=True):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile,
+                n_steps=1, n_testtrain=50, wait_time=1, max_batches=20, grad_adapt=False, ff=False, training=True, verbose=True):
     tally = 0
     best_n = 0
     old_loss = 1e9
-    overall_loss_tracker = []
-    overall_auc_tracker = []
-    y_tracker = []
-    y_prob_tracker = []
+    #overall_loss_tracker = []
+    #overall_auc_tracker = []
+    #y_tracker = []
+    #y_prob_tracker = []
     
     alpha = optimizer.param_groups[0]['lr']
     wd = optimizer.param_groups[0]['weight_decay']
@@ -39,15 +40,20 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             global_theta = []
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
-            loss, auc, ys, yps = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
+            stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
                                                             n_testtrain, verbose)
         else:
-            loss, auc, ys, yps = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches)
+            stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches)
 
-        overall_loss_tracker.append(loss)
-        overall_auc_tracker.append(auc)
-        y_tracker.append(ys)
-        y_prob_tracker.append(yps)
+        #loss, auc, ys, yps
+        #overall_loss_tracker.append(loss)
+        #overall_auc_tracker.append(auc)
+        #y_tracker.append(ys)
+        #y_prob_tracker.append(yps)
+        
+        loss = stats[0]
+        with open(statsfile, 'wb') as f:
+            pickle.dump(stats, f)   
 
         if training:
             if loss < old_loss: 
@@ -78,7 +84,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
     
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
 
-    return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
+    #return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def cycle(iterable):
     '''
@@ -93,11 +99,13 @@ def cycle(iterable):
             iterator = iter(iterable)
             
 def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, wait_time=1, max_batches=20, splits=['Train', 'Val']):
+    total_batches = (max_batches // wait_time) * wait_time
+    
     total_loss, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([])
     total_loss_val, y_prob_tracker_val, y_tracker_val = 0.0, np.array([]), np.array([])
     
     for t, ((x, y), (x_val, y_val)) in enumerate(zip(tqdm(train_loader), cycle(val_loader))):
-        if max_batches != -1 and t >= (max_batches // wait_time) * wait_time:
+        if max_batches != -1 and t >= total_batches:
             break
             
         else:
@@ -145,13 +153,12 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, wait_time=1, max_batches=20, splits=['Val', 'CumVal']):
     net.eval()
     
-    batch_loss_val = 0.0
-    loss_tracker = np.array([])
-    y_prob_tracker = np.array([])
-    y_tracker = np.array([])
+    total_batches = (max_batches // wait_time) * wait_time
+    
+    batch_loss_val, loss_tracker, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([]), np.array([])
 
     for t, (x_val, y_val) in enumerate(tqdm(val_loader)):
-        if max_batches != -1 and t >= (max_batches // wait_time) * wait_time:
+        if max_batches != -1 and t >= total_batches:
             break
             
         else:
