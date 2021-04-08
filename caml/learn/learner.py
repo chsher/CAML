@@ -52,7 +52,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         #y_prob_tracker.append(yps)
         
         loss = stats[0]
-        with open(statsfile, 'wb') as f:
+        with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
 
         if training:
@@ -114,7 +114,7 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
 
             y_pred = net(x.to(device))
             loss = criterion(y_pred, y.to(device))
-            total_loss += loss
+            total_loss += loss / wait_time
             
             y_prob = torch.sigmoid(y_pred.detach().cpu())
             y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
@@ -124,7 +124,7 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
             with torch.no_grad():
                 y_pred_val = net(x_val.to(device))
                 loss_val = criterion(y_pred_val, y_val.to(device))
-                total_loss_val += loss_val.detach().cpu()
+                total_loss_val += loss_val.detach().cpu() / wait_time
                 
                 y_prob_val = torch.sigmoid(y_pred_val.detach().cpu())
                 y_prob_tracker_val = np.concatenate((y_prob_tracker_val, y_prob_val.squeeze(-1).numpy()))
@@ -149,6 +149,7 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
                     print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu() / wait_time, auc, total_loss_val / wait_time, auc_val, *splits))
                     
                 total_loss = 0.0
+                total_loss_val = 0.0
 
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, wait_time=1, max_batches=20, splits=['Val', 'CumVal']):
     net.eval()
@@ -166,7 +167,7 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
                 y_pred_val = net(x_val.to(device))
                 loss_val = criterion(y_pred_val, y_val.to(device))
 
-                batch_loss_val += torch.mean(loss_val.detach().cpu())
+                batch_loss_val += torch.mean(loss_val.detach().cpu()) / wait_time
                 loss_tracker = np.concatenate((loss_tracker, loss_val.detach().cpu().squeeze(-1).numpy()))
 
                 y_prob_val = torch.sigmoid(y_pred_val.detach().cpu()).squeeze(-1).numpy()
