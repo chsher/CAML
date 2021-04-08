@@ -6,10 +6,10 @@ METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
 TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
-PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 
+PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 'RANDOM_SEED',
           'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
           'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
-          'VAL_CANCERS', 'LEARN_VAL', 'HID_DIM', 'RES_DICT', 'N_STEPS', 'N_TESTTRAIN', 'GRAD_ADAPT', 'ETA', 'N_CHOOSE']
+          'VAL_CANCERS', 'TEST_VAL', 'HID_DIM', 'RES_DICT', 'N_STEPS', 'N_TESTTRAIN', 'GRAD_ADAPT', 'ETA', 'N_CHOOSE']
 
 POOL_KEY = {
     'max': torch.max,
@@ -29,7 +29,8 @@ def parse_args():
     parser.add_argument('--max_batches', type=int, default=20, help='max number of batches per epoch (-1: include all)')
     parser.add_argument('--pin_memory', default=False, action='store_true', help='whether to pin memory during data loading')
     parser.add_argument('--n_workers', type=int, default=12, help='number of workers to use during data loading')
-
+    parser.add_argument('--random_seed', type=int, default=31321, help='random seed of the dataset and data filter')
+    
     # learning parameters
     parser.add_argument('--training', default=False, action='store_true', help='whether to train the model')
     parser.add_argument('--learning_rate', type=float, default=0.0001, help='[local] learning rate')

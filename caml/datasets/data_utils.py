@@ -87,7 +87,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
         dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False)
+        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False, random_seed=random_seed)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
@@ -97,9 +97,9 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, random_seed=random_seed) 
         else:
-            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False) 
+            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, random_seed=random_seed) 
         dss.append(ds)
         
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std

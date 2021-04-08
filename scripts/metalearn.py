@@ -34,7 +34,8 @@ else:
 df = pd.read_csv(args.infile)
 
 if args.renormalize:
-    ds = tcga.TCGAdataset(df, transform=None, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, apply_filter=True)
+    ds = tcga.TCGAdataset(df, transform=None, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, 
+                          apply_filter=True, random_seed=args.random_seed)
     mu, sig = data_utils.compute_stats(ds)
 else:
     mu, sig = data_utils.NORMAlIZER.mean, data_utils.NORMAlIZER.std
@@ -42,12 +43,14 @@ transform_train, transform_val = data_utils.build_transforms(mu, sig)
 
 trains = []
 for cancer in args.cancers:
-    tr = tcga.TCGAdataset(df, transform=transform_train, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+    tr = tcga.TCGAdataset(df, transform=transform_train, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer], 
+                          random_seed=args.random_seed)
     trains.append(tr)
 
 vals = []
 for cancer in args.val_cancers:
-    va = tcga.TCGAdataset(df, transform=transform_val, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+    va = tcga.TCGAdataset(df, transform=transform_val, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer], 
+                          random_seed=args.random_seed)
     vals.append(va)
 
 train_loaders = []
@@ -60,7 +63,7 @@ for va in vals:
     va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
     val_loaders.append(va_loader)
 
-values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, 
+values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.resfile, args.n_steps, args.n_testtrain, args.grad_adapt, args.eta, args.n_choose]
