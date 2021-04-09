@@ -149,7 +149,7 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
                     except:
                         auc_val = 0.0
 
-                    print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu() / wait_time, auc, total_loss_val / wait_time, auc_val, *splits))
+                    print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu(), auc, total_loss_val, auc_val, *splits))
                     
                 total_loss = 0.0
                 total_loss_val = 0.0
@@ -190,7 +190,7 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
                         except:
                             auc_all = 0.0
 
-                        print(PRINT_STMT.format(epoch_num, t, batch_loss_val / wait_time, auc_val, np.mean(loss_tracker), auc_all, *splits))
+                        print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
                     
                     batch_loss_val = 0.0
 
