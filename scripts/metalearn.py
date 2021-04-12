@@ -79,14 +79,13 @@ print(global_model)
 criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduction='none')]
 
 #################### TRAIN ####################
-if args.training:
-    stats = metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model,
-                                local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.patience, args.outfile, n_choose=args.n_choose,
-                                training=args.training)
+metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model,
+                        local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.patience, args.outfile, args.statsfile,
+                        n_choose=args.n_choose, training=args.training)
 
-    with open(args.statsfile, 'ab') as f:
-        pickle.dump(stats, f)
-    
+#with open(args.statsfile, 'ab') as f:
+#    pickle.dump(stats, f)
+
 #################### N_STEPS ####################
 if args.test_val and args.grad_adapt:
     net, global_model, local_models, global_theta = metalearner.init_models(args.hidden_size, args.output_size, 0, device, dropout=args.dropout,
@@ -96,7 +95,8 @@ if args.test_val and args.grad_adapt:
         for tt in [25, 50, 100, 150]:
             print('N_STEPS:', s, 'N_TESTTRAIN:', tt)
             stats = metalearner.train_model(1, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model,
-                                            local_models, global_theta, criterions, device, s, tt, args.patience, args.outfile, n_choose=0, training=False)
+                                            local_models, global_theta, criterions, device, s, tt, args.patience, args.outfile, args.statsfile,
+                                            n_choose=0, training=False)
 
             with open(args.statsfile, 'ab') as f:
                 pickle.dump([s, tt, stats], f)

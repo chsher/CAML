@@ -178,17 +178,17 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
 
                 y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
 
+                try:
+                    auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                except:
+                    auc_all = 0.0
+
                 if (t + 1) % wait_time == 0:
                     if verbose:
                         try:
                             auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)
                         except:
                             auc_val = 0.0
-
-                        try:
-                            auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                        except:
-                            auc_all = 0.0
 
                         print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
                     

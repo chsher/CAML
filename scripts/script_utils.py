@@ -59,7 +59,7 @@ def parse_args():
     parser.add_argument('--resfile', type=str, default=None, help='path to pre-trained resnet')
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on val set')
     parser.add_argument('--n_testtrain', type=int, default=50, help='number of examples on which to train during test time')
-    parser.add_argument('--grad_adapt', default=False, action='store_true', help='whether to perform gradient adaptation if testing on val cancers')
+    parser.add_argument('--grad_adapt', default=False, action='store_true', help='whether to grad adapt in non-meta-learn sits if testing on val cancers')
     
     # maml parameters
     parser.add_argument('--eta', type=float, default=0.01, help='global learning rate')

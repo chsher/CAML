@@ -52,17 +52,16 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
     return net, global_model, local_models, global_theta
 
 def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, criterions, device, n_steps, 
-                n_testtrain, patience, outfile, n_choose=5, training=True, verbose=True, random_seed=31321):
+                n_testtrain, patience, outfile, statsfile, n_choose=5, training=True, verbose=True, random_seed=31321):
 
     tally = 0
-    best_n = 0
-    old_loss = 1e9
+    best_n, best_auc, old_loss = 0, 0, 1e9
     n_local = len(local_models)
 
-    overall_loss_tracker = []
-    overall_auc_tracker = []
-    y_tracker = []
-    y_prob_tracker = []
+    #overall_loss_tracker = []
+    #overall_auc_tracker = []
+    #y_tracker = []
+    #y_prob_tracker = []
 
     if random_seed is not None:
         np.random.seed(random_seed)
@@ -83,16 +82,18 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             for i in range(n_local):
                 local_models[i].update_params(global_theta)
         
-        loss, auc, ys, yps = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, verbose)
+        stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, verbose)
         
-        overall_loss_tracker.append(loss)
-        overall_auc_tracker.append(auc)
-        y_tracker.append(ys)
-        y_prob_tracker.append(yps)
+        #loss, auc, ys, yps
+        #overall_loss_tracker.append(loss)
+        #overall_auc_tracker.append(auc)
+        #y_tracker.append(ys)
+        #y_prob_tracker.append(yps)
         
-        if loss < old_loss: 
-            best_n = n
-            old_loss = loss 
+        with open(statsfile, 'ab') as f:
+            pickle.dump(stats, f) 
+
+        loss = stats[0]
 
         if training:
             if loss < old_loss: 
@@ -112,10 +113,16 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
                 print('----- LR DECAY ----- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
 
                 tally = 0
-    
-    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
 
-    return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
+        if loss < old_loss: 
+            best_n = n
+            best_loss = loss 
+            best_auc = np.mean(stats[1])
+    
+    #print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
+    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
+
+    #return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterion, device, verbose=True, splits=['FwdOne', 'FwdTwo']):
     '''
@@ -184,33 +191,35 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                    splits=['Val', 'CumVal']):
     net.eval()
 
-    loss_tracker = np.array([])
-    y_prob_tracker = np.array([])
-    y_tracker = np.array([])
+    loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])
 
+    criterion = criterions[0]
     for t, val_loader in enumerate(tqdm(val_loaders)):
-        criterion = criterions[0]
+        #criterion = criterions[0]
         global_model.update_params(global_theta)
         optimizer = torch.optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
         for i, (x, y) in enumerate(val_loader):
-            if i < n_steps:
-                global_model.train()
-                
-                x = x[:n_testtrain, ]
-                y = y[:n_testtrain, ]
-                y_pred = global_model(net(x.to(device)))
-                loss = criterion(y_pred, y.to(device))
+            #if i < n_steps:
+            if i == 0 and n_steps > 0:
+                for j in range(n_steps):
+                    global_model.train()
+                    
+                    x = x[:n_testtrain, ]
+                    y = y[:n_testtrain, ]
+                    y_pred = global_model(net(x.to(device)))
+                    loss = criterion(y_pred, y.to(device))
 
-                loss.backward()
-                optimizer.step()
-                optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad()
 
-            elif i >= n_steps or (n_steps == 0 and i == 0):
+            #elif i >= n_steps or (n_steps == 0 and i == 0):
+            elif i > 0 or (n_steps == 0 and i == 0):
                 global_model.eval()
                 
                 with torch.no_grad():
-                    criterion = criterions[1]
+                    #criterion = criterions[1]
 
                     y_pred = global_model(net(x.to(device)))
                     loss = criterion(y_pred, y.to(device))
@@ -218,23 +227,27 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                     
                     y_prob = torch.sigmoid(y_pred.detach().cpu()).squeeze(-1).numpy()    
                     y_prob_tracker = np.concatenate((y_prob_tracker, y_prob))
-                    
+
                     y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
 
-                    if verbose:
-                        try:
-                            auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
-                            auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                        except:
-                            auc = 0.0
-                            auc_all = 0.0
+                    try:
+                        auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
+                    except:
+                        auc = 0.0
 
-                        loss = torch.mean(loss.detach().cpu())
-                        
+                    try:
+                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                    except:
+                        auc_all = 0.0
+
+                    auc_tracker = np.append(auc_tracker, auc)                    
+
+                    if verbose:
+                        #loss = torch.mean(loss.detach().cpu())
                         print(PRINT_STMT.format(epoch_num, t, loss, auc, np.mean(loss_tracker), auc_all, *splits))
 
                 break
 
     global_model.update_params(global_theta)
 
-    return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker
+    return np.mean(loss_tracker), auc_tracker, y_tracker, y_prob_tracker
