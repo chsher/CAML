@@ -60,7 +60,7 @@ for tr in trains:
 
 val_loaders = []
 for va in vals:
-    va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+    va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
     val_loaders.append(va_loader)
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
@@ -81,7 +81,7 @@ criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduc
 #################### TRAIN ####################
 metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model,
                         local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.patience, args.outfile, args.statsfile,
-                        n_choose=args.n_choose, training=args.training)
+                        n_choose=args.n_choose, wait_time=args.wait_time, training=args.training)
 
 #with open(args.statsfile, 'ab') as f:
 #    pickle.dump(stats, f)
