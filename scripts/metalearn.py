@@ -66,7 +66,7 @@ for va in vals:
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
-          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.resfile, args.n_steps, args.n_testtrain, args.grad_adapt, args.eta, args.n_choose]
+          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.resfile, args.resfile_new, args.n_steps, args.n_testtrain, args.grad_adapt, args.eta, args.n_choose]
 for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals])]):
     print('{0:12} {1}'.format(k, v))
 

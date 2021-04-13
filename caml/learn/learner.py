@@ -19,8 +19,8 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile,
-                n_steps=1, n_testtrain=50, wait_time=1, max_batches=20, grad_adapt=False, ff=False, training=True, verbose=True):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile, resfile_new=None, 
+                n_steps=1, n_testtrain=50, wait_time=1, max_batches=20, grad_adapt=False, ff=False, freeze=True, training=True, verbose=True):
     tally = 0
     best_n, best_auc, best_loss = 0, 0, 1e9
 
@@ -60,6 +60,8 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             if loss < best_loss: 
                 if ff:
                     torch.save(net.ff.state_dict(), outfile)
+                    if not freeze:
+                        torch.save(net.resnet.state_dict(), resfile_new)
                 else:
                     torch.save(net.resnet.state_dict(), outfile)
                 print('----- SAVED MODEL -----')
@@ -74,6 +76,9 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                 saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
                 if ff:
                     net.ff.load_state_dict(saved_state)
+                    if not freeze:
+                        saved_state_new = torch.load(resfile_new, map_location=lambda storage, loc: storage)
+                        net.resnet.load_state_dict(saved_state_new)
                 else:
                     net.resnet.load_state_dict(saved_state)
                 print('----- RELOADED MODEL -----')

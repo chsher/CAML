@@ -51,12 +51,12 @@ val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_mem
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed,
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
-          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.resfile, args.n_steps, args.n_testtrain, args.grad_adapt]
+          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.resfile, args.resfile_new, args.n_steps, args.n_testtrain, args.grad_adapt]
 for k,v in zip(script_utils.PARAMS[:-2] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, freeze=True, pool=args.pool)
+net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, freeze=args.freeze, pool=args.pool)
 net.to(device)
 print(net)
 
@@ -66,7 +66,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile,
-                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=True)
+                    resfile_new=args.resfile_new, wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=True, freeze=args.freeze)
 
 #with open(args.statsfile, 'ab') as f:
 #    pickle.dump(stats, f)
