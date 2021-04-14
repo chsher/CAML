@@ -34,11 +34,11 @@ else:
 df = pd.read_csv(args.infile)
 
 if args.renormalize:
-    ds = tcga.TCGAdataset(df, transform=None, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, 
+    ds = tcga.TCGAdataset(df, transform=None, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit='tile', cancers=args.cancers, 
                           apply_filter=True, random_seed=args.random_seed)
     mu, sig = data_utils.compute_stats(ds)
 else:
-    mu, sig = data_utils.NORMAlIZER.mean, data_utils.NORMAlIZER.std
+    mu, sig = data_utils.NORMALIZER.mean, data_utils.NORMALIZER.std
 transform_train, transform_val = data_utils.build_transforms(mu, sig)
 
 trains = []
@@ -67,27 +67,27 @@ values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, arg
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.resfile, args.resfile_new, args.n_steps, args.n_testtrain, args.grad_adapt, args.eta, args.n_choose]
-for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals])]):
+for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals]), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
 net, global_model, local_models, global_theta = metalearner.init_models(args.hidden_size, args.output_size, len(args.cancers), device, dropout=args.dropout,
-                                                                        resnet_file=args.resfile, maml_file=args.outfile, pool=args.pool)
+                                                                        resnet_file=args.resfile, maml_file=args.outfile, freeze=args.freeze)
 print(net)
 print(global_model)
 
 criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduction='none')]
 
 #################### TRAIN ####################
-metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model,
-                        local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.patience, args.outfile, args.statsfile,
-                        n_choose=args.n_choose, wait_time=args.wait_time, training=args.training)
+metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, net, global_model, local_models, 
+                        global_theta, criterions, device, args.n_steps, args.n_testtrain, args.patience, args.outfile, args.statsfile, n_choose=args.n_choose, 
+                        wait_time=args.wait_time, training=args.training, pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles)
 
 #with open(args.statsfile, 'ab') as f:
 #    pickle.dump(stats, f)
 
 #################### N_STEPS ####################
-if args.test_val and args.grad_adapt:
+'''if args.test_val and args.grad_adapt:
     net, global_model, local_models, global_theta = metalearner.init_models(args.hidden_size, args.output_size, 0, device, dropout=args.dropout,
                                                                             resnet_file=args.resfile, maml_file=args.outfile, pool=args.pool)
 
@@ -99,4 +99,4 @@ if args.test_val and args.grad_adapt:
                                             n_choose=0, training=False)
 
             with open(args.statsfile, 'ab') as f:
-                pickle.dump([s, tt, stats], f)
+                pickle.dump([s, tt, stats], f)'''

@@ -107,13 +107,16 @@ def cycle(iterable):
             iterator = iter(iterable)
             
 def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, wait_time=1, max_batches=20, splits=['Train', 'Val']):
-    total_batches = (max_batches // wait_time) * wait_time
+    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else (len(train_loader) // wait_time) * wait_time
+    if total_batches == 0:
+        total_batches = len(train_loader)
+        wait_time = len(train_loader)
     
     total_loss, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([])
     total_loss_val, y_prob_tracker_val, y_tracker_val = 0.0, np.array([]), np.array([])
     
     for t, ((x, y), (x_val, y_val)) in enumerate(zip(tqdm(train_loader), cycle(val_loader))):
-        if max_batches != -1 and t >= total_batches:
+        if t >= total_batches:
             break
             
         else:
@@ -162,12 +165,15 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, wait_time=1, max_batches=20, splits=['Val', 'CumVal']):
     net.eval()
     
-    total_batches = (max_batches // wait_time) * wait_time
+    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else len(val_loader)
+    if total_batches == 0:
+        total_batches = len(val_loader)
+        wait_time = len(val_loader)
     
     batch_loss_val, loss_tracker, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([]), np.array([])
 
     for t, (x_val, y_val) in enumerate(tqdm(val_loader)):
-        if max_batches != -1 and t >= total_batches:
+        if t >= total_batches:
             break
             
         else:
@@ -183,12 +189,12 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
 
                 y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
 
-                try:
-                    auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                except:
-                    auc_all = 0.0
+                if ((t + 1) % wait_time == 0) or (t == total_batches - 1):
+                    try:
+                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                    except:
+                        auc_all = 0.0
 
-                if (t + 1) % wait_time == 0:
                     if verbose:
                         try:
                             auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)

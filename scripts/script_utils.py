@@ -54,14 +54,14 @@ def parse_args():
     
     # task parameters
     parser.add_argument('--val_cancers', nargs='*', default=VAL_CANCERS, help='list of cancers to include in the val set')
-    parser.add_argument('--test_val', default=False, action='store_true', help='whether to test model on val cancers')
+    parser.add_argument('--test_val', default=False, action='store_true', help='whether to test non-meta-learned model on val cancers')
     parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
     parser.add_argument('--freeze', default=False, action='store_true', help='whether to freeze the resnet layers')
     parser.add_argument('--resfile', type=str, default=None, help='path to pre-trained resnet')
     parser.add_argument('--resfile_new', type=str, default=None, help='path to newly-trained resnet, if freeze is false')
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on val set')
     parser.add_argument('--n_testtrain', type=int, default=50, help='number of examples on which to train during test time')
-    parser.add_argument('--grad_adapt', default=False, action='store_true', help='whether to grad adapt in non-meta-learn sits if testing on val cancers')
+    parser.add_argument('--grad_adapt', default=False, action='store_true', help='whether to grad adapt non-meta-learn model during test')
     
     # maml parameters
     parser.add_argument('--eta', type=float, default=0.01, help='global learning rate')

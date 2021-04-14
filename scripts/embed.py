@@ -41,8 +41,9 @@ val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_mem
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed,
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
-          args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile]
-for k,v in zip(script_utils.PARAMS[:-11] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
+          args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
+          args.resfile]
+for k,v in zip(script_utils.PARAMS[:-9] + ['RES_DICT', 'TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
@@ -54,7 +55,7 @@ for k,v in zip(script_utils.PARAMS[:-11] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU'
 #    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
 #    net.load_state_dict(saved_state)
 
-net = feedforward.ClassifierNet(None, args.output_size, resfile=args.outfile, dropout=args.dropout, freeze=False, pool=args.pool)
+net = feedforward.ClassifierNet(None, args.output_size, resfile=args.resfile, dropout=args.dropout, freeze=False, pool=args.pool)
 net.to(device)
 print(net)
 
