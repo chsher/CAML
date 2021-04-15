@@ -55,8 +55,8 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
     return net, global_model, local_models, global_theta
 
 def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, 
-                criterions, device, n_steps, n_testtrain, patience, outfile, statsfile, n_choose=5, wait_time=1, training=True, 
-                pool=None, batch_size=None, num_tiles=None, verbose=True, random_seed=31321):
+                criterions, device, n_steps, n_testtrain, n_testtest, patience, outfile, statsfile, n_choose=5, wait_time=1, 
+                training=True, pool=None, batch_size=None, num_tiles=None, verbose=True, random_seed=31321):
 
     tally = 0
     best_n, best_auc, old_loss = 0, 0, 1e9
@@ -87,7 +87,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             for i in range(n_local):
                 local_models[i].update_params(global_theta)
         
-        stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, wait_time, 
+        stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, n_testtest, wait_time, 
                                pool, batch_size, num_tiles, verbose)
         
         #loss, auc, ys, yps
@@ -142,6 +142,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
 
     for t in tqdm(ts):
         local_model = local_models[t]
+        optimizer = optim.Adam(local_model.parameters(), lr=alpha, weight_decay=wd)
         local_model.train()
 
         train_loader = train_loaders[t]
@@ -152,16 +153,13 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         for i, (x, y) in enumerate(train_loader):
             # first forward pass, update local params
             if i < wait_time:
-                optimizer = torch.optim.Adam(local_model.parameters(), lr=alpha, weight_decay=wd)
-
                 if pool is not None:
-                    x = x.contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-
-                y_pred = local_model(net(x.to(device)))
-
-                if pool is not None:
+                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                    y_pred = local_model(net(x))
                     y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
                     y_pred = pool(y_pred, dim=1)
+                else:
+                    y_pred = local_model(net(x.to(device)))
                 
                 loss = criterion(y_pred, y.to(device))
                 total_loss += loss / wait_time
@@ -181,13 +179,12 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
             # second forward pass, store grads
             elif (i >= wait_time) and (i < wait_time * 2):
                 if pool is not None:
-                    x = x.contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-
-                y_pred = local_model(net(x.to(device)))
-
-                if pool is not None:
+                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                    y_pred = local_model(net(x))
                     y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
                     y_pred = pool(y_pred, dim=1)
+                else:
+                    y_pred = local_model(net(x.to(device)))
 
                 loss = criterion(y_pred, y.to(device))
                 total_loss += loss / wait_time
@@ -234,18 +231,20 @@ def run_global_train(global_theta, global_model, grads, eta):
 
     return global_theta, global_model
 
-def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, wait_time=1, 
+def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, n_testtest=50, wait_time=1, 
                    pool=None, batch_size=None, num_tiles=None, verbose=True, splits=['TaskVal', 'CumVal']):
     net.eval()
+    
+    val_wait_time = max(n_testtest // batch_size, 1)
 
     loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])
 
     for t, val_loader in enumerate(tqdm(val_loaders)):
         global_model.update_params(global_theta)
-        optimizer = torch.optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
-
-        criterion = criterions[0]
+        optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
         global_model.train()
+        
+        criterion = criterions[0]
         total_loss = 0.0
 
         for ns in range(n_steps):
@@ -256,13 +255,12 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                         y = y[:n_testtrain, ]
 
                     if pool is not None:
-                        x = x.contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-
-                    y_pred = global_model(net(x.to(device)))
-
-                    if pool is not None:
+                        x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                        y_pred = global_model(net(x))
                         y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
                         y_pred = pool(y_pred, dim=1)
+                    else:
+                        y_pred = global_model(net(x.to(device)))
                     
                     loss = criterion(y_pred, y.to(device))
                     total_loss += loss / wait_time
@@ -275,55 +273,52 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
                     break
 
-        criterion = criterions[1]
         global_model.eval()
+        criterion = criterions[1]
         total_loss = 0.0
 
         for i, (x, y) in enumerate(val_loader):
-            if (i >= wait_time) and (i < wait_time * 2):
-                if x.shape[0] > n_testtrain:
-                    x = x[:n_testtrain, ]
-                    y = y[:n_testtrain, ]
+            if (i >= wait_time) and (i < wait_time + val_wait_time):
+                if x.shape[0] > n_testtest:
+                    x = x[:n_testtest, ]
+                    y = y[:n_testtest, ]
 
                 with torch.no_grad():
                     if pool is not None:
-                        x = x.contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-
-                    y_pred = global_model(net(x.to(device)))
-
-                    if pool is not None:
+                        x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                        y_pred = global_model(net(x))
                         y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
                         y_pred = pool(y_pred, dim=1)
+                    else:
+                        y_pred = global_model(net(x.to(device)))
                         
                     loss = criterion(y_pred, y.to(device))
-
-                    total_loss += torch.mean(loss.detach().cpu()) / wait_time
+                    total_loss += torch.mean(loss.detach().cpu()) / val_wait_time
                     loss_tracker = np.concatenate((loss_tracker, loss.detach().cpu().squeeze(-1).numpy()))
                     
                     y_prob = torch.sigmoid(y_pred.detach().cpu()).squeeze(-1).numpy()    
                     y_prob_tracker = np.concatenate((y_prob_tracker, y_prob))
-
                     y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
 
-                    if i == (wait_time * 2) - 1:
-                        try:
-                            bs = wait_time * batch_size
-                            auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
-                            #auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
-                        except:
-                            auc = 0.0
+                if i == (wait_time + val_wait_time) - 1:
+                    try:
+                        bs = val_wait_time * min(batch_size, n_testtest)
+                        auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
+                        #auc = roc_auc_score(y.squeeze(-1).numpy(), y_prob)
+                    except:
+                        auc = 0.0
 
-                        try:
-                            auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                        except:
-                            auc_all = 0.0
+                    try:
+                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                    except:
+                        auc_all = 0.0
 
-                        auc_tracker = np.concatenate((auc_tracker, [auc]))
+                    auc_tracker = np.concatenate((auc_tracker, [auc]))
 
-                        if verbose:
-                            print(PRINT_STMT.format(epoch_num, t, total_loss, auc, np.mean(loss_tracker), auc_all, *splits))
+                    if verbose:
+                        print(PRINT_STMT.format(epoch_num, t, total_loss, auc, np.mean(loss_tracker), auc_all, *splits))
 
-                        break
+                    break
 
     global_model.update_params(global_theta)
 
