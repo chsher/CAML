@@ -56,7 +56,12 @@ class TCGAdataset(Dataset):
         
         if apply_filter:
             self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers)
-            
+        
+        idxs = np.arange(self.df.shape[0])
+        np.random.shuffle(idxs)
+        self.df = self.df.iloc[idxs, :]
+        self.df.reset_index(drop=True, inplace=True)
+        
         if self.unit == 'tile':
             self.df['n_tiles'] = self.df['n_tiles'].apply(lambda x: min(x, self.num_tiles))
             self.n_idxs = int(self.df['n_tiles'].sum())
