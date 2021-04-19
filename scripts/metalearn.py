@@ -1,5 +1,7 @@
 import os
 import sys
+import datetime
+from git import Repo
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 from caml.datasets import tcga, data_utils
@@ -16,11 +18,6 @@ from torchvision import models, transforms
 import pickle
 import numpy as np
 import pandas as pd
-
-#METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
-
-#TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
-#VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
 #################### SETUP ####################
 args = script_utils.parse_args()
@@ -63,6 +60,13 @@ for va in vals:
     va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
     val_loaders.append(va_loader)
 
+#################### PRINT PARAMS ####################
+repo = Repo(search_parent_directories=True)
+commit  = repo.head.object
+commit_date = datetime.datetime.fromtimestamp(commit.committed_date)
+print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format(
+    commit.hexsha, commit.message, commit.author, commit_date.strftime("%d-%b-%Y (%H:%M:%S)")))
+
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
@@ -84,9 +88,6 @@ metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning
                         net, global_model, local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.n_testtest, 
                         args.patience, args.outfile, args.statsfile, n_choose=args.n_choose, wait_time=args.wait_time, training=args.training, 
                         pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles)
-
-#with open(args.statsfile, 'ab') as f:
-#    pickle.dump(stats, f)
 
 #################### N_STEPS ####################
 '''if args.test_val and args.grad_adapt:
