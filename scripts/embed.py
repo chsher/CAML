@@ -1,5 +1,7 @@
 import os
 import sys
+import datetime
+from git import Repo
 from os.path import dirname, realpath
 sys.path.append(dirname(dirname(realpath(__file__))))
 from caml.datasets import data_utils
@@ -19,10 +21,6 @@ import numpy as np
 import pandas as pd
 import argparse
 
-#METADATA_FILEPATH = '/home/schao/url/results-20210308-203457_clean_031521.csv'
-
-#CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
-
 #################### SETUP ####################
 args = script_utils.parse_args()
 
@@ -39,6 +37,13 @@ df = pd.read_csv(args.infile)
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
 
+#################### PRINT PARAMS ####################
+repo = Repo(search_parent_directories=True)
+commit  = repo.head.object
+commit_date = datetime.datetime.fromtimestamp(commit.committed_date)
+print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format(
+    commit.hexsha, commit.message, commit.author, commit_date.strftime("%d-%b-%Y (%H:%M:%S)")))
+
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed,
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
@@ -47,14 +52,6 @@ for k,v in zip(script_utils.PARAMS[:-12] + ['RES_DICT', 'TRAIN_SIZE', 'VAL_SIZE'
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-#net = models.resnet18(pretrained=True)
-#hidden_size = net.fc.weight.shape[1]
-#net.fc = nn.Linear(hidden_size, args.output_size, bias=True)
-
-#if os.path.exists(args.outfile):
-#    saved_state = torch.load(args.outfile, map_location=lambda storage, loc: storage)
-#    net.load_state_dict(saved_state)
-
 net = feedforward.ClassifierNet(None, args.output_size, resfile=args.resfile, dropout=args.dropout, freeze=False, pool=args.pool)
 net.to(device)
 print(net)
@@ -65,7 +62,4 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile, 
-                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, freeze=False)
-
-#with open(args.statsfile, 'wb') as f:
-#    pickle.dump(stats, f)             
+                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, freeze=False)          

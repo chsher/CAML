@@ -19,15 +19,11 @@ from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
+
 def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile, resfile_new=None, 
                 n_steps=1, n_testtrain=50, wait_time=1, max_batches=20, grad_adapt=False, ff=False, freeze=True, training=True, verbose=True):
-    tally = 0
-    best_n, best_auc, best_loss = 0, 0, 1e9
 
-    #overall_loss_tracker = []
-    #overall_auc_tracker = []
-    #y_tracker = []
-    #y_prob_tracker = []
+    tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
     
     alpha = optimizer.param_groups[0]['lr']
     wd = optimizer.param_groups[0]['weight_decay']
@@ -36,6 +32,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         if training:
             run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time, max_batches)
         
+        #loss, auc, ys, yps = stats
         if grad_adapt:
             global_theta = []
             for p in net.ff.parameters():
@@ -44,12 +41,6 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                                                n_testtrain, verbose)
         else:
             stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches)
-
-        #loss, auc, ys, yps
-        #overall_loss_tracker.append(loss)
-        #overall_auc_tracker.append(auc)
-        #y_tracker.append(ys)
-        #y_prob_tracker.append(yps)
         
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
@@ -89,16 +80,15 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             best_loss = loss 
             best_auc = stats[1]
             
-    #print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, overall_loss_tracker[best_n], overall_auc_tracker[best_n]))
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
     
-    #return overall_loss_tracker, overall_auc_tracker, y_tracker, y_prob_tracker
 
 def cycle(iterable):
     '''
     - source: https://github.com/pytorch/pytorch/issues/23900
     - addresses memory leak issue from itertools cycle
     '''
+
     iterator = iter(iterable)
     while True:
         try:
@@ -106,7 +96,9 @@ def cycle(iterable):
         except StopIteration:
             iterator = iter(iterable)
             
+
 def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, wait_time=1, max_batches=20, splits=['Train', 'Val']):
+
     total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else (len(train_loader) // wait_time) * wait_time
     if total_batches == 0:
         total_batches = len(train_loader)
@@ -119,50 +111,55 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
         if t >= total_batches:
             break
             
-        else:
+        net.train()
+        optimizer.zero_grad()
+
+        y_pred = net(x.to(device))
+        
+        loss = criterion(y_pred, y.to(device)) / wait_time
+        loss.backward()
+
+        total_loss += loss.detach().cpu() 
+        
+        y_prob = torch.sigmoid(y_pred.detach().cpu())
+        y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
+        y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+        
+        net.eval()
+        with torch.no_grad():
+            y_pred_val = net(x_val.to(device))
+
+        loss_val = criterion(y_pred_val, y_val.to(device)) / wait_time
+
+        total_loss_val += loss_val.cpu() 
+        
+        y_prob_val = torch.sigmoid(y_pred_val.cpu())
+        y_prob_tracker_val = np.concatenate((y_prob_tracker_val, y_prob_val.squeeze(-1).numpy()))
+        y_tracker_val = np.concatenate((y_tracker_val, y_val.squeeze(-1).numpy()))
+
+        if (t + 1) % wait_time == 0:
             net.train()
-            optimizer.zero_grad()
-
-            y_pred = net(x.to(device))
-            loss = criterion(y_pred, y.to(device))
-            total_loss += loss / wait_time
+            optimizer.step()
             
-            y_prob = torch.sigmoid(y_pred.detach().cpu())
-            y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
-            y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
-            
-            net.eval()
-            with torch.no_grad():
-                y_pred_val = net(x_val.to(device))
-                loss_val = criterion(y_pred_val, y_val.to(device))
-                total_loss_val += loss_val.detach().cpu() / wait_time
+            if verbose:
+                try:
+                    auc = roc_auc_score(y_tracker, y_prob_tracker)
+                except:
+                    auc = 0.0
+
+                try:
+                    auc_val = roc_auc_score(y_tracker_val, y_prob_tracker_val)
+                except:
+                    auc_val = 0.0
+
+                print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu(), auc, total_loss_val, auc_val, *splits))
                 
-                y_prob_val = torch.sigmoid(y_pred_val.detach().cpu())
-                y_prob_tracker_val = np.concatenate((y_prob_tracker_val, y_prob_val.squeeze(-1).numpy()))
-                y_tracker_val = np.concatenate((y_tracker_val, y_val.squeeze(-1).numpy()))
+            total_loss = 0.0
+            total_loss_val = 0.0
 
-            if (t + 1) % wait_time == 0:
-                net.train()
-                total_loss.backward()
-                optimizer.step()
-                
-                if verbose:
-                    try:
-                        auc = roc_auc_score(y_tracker, y_prob_tracker)
-                    except:
-                        auc = 0.0
-
-                    try:
-                        auc_val = roc_auc_score(y_tracker_val, y_prob_tracker_val)
-                    except:
-                        auc_val = 0.0
-
-                    print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu(), auc, total_loss_val, auc_val, *splits))
-                    
-                total_loss = 0.0
-                total_loss_val = 0.0
 
 def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, wait_time=1, max_batches=20, splits=['Val', 'CumVal']):
+
     net.eval()
     
     total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else len(val_loader)
@@ -176,33 +173,33 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
         if t >= total_batches:
             break
             
-        else:
-            with torch.no_grad():
-                y_pred_val = net(x_val.to(device))
-                loss_val = criterion(y_pred_val, y_val.to(device))
+        with torch.no_grad():
+            y_pred_val = net(x_val.to(device))
 
-                batch_loss_val += torch.mean(loss_val.detach().cpu()) / wait_time
-                loss_tracker = np.concatenate((loss_tracker, loss_val.detach().cpu().squeeze(-1).numpy()))
+        loss_val = criterion(y_pred_val, y_val.to(device)) / wait_time
 
-                y_prob_val = torch.sigmoid(y_pred_val.detach().cpu()).squeeze(-1).numpy()
-                y_prob_tracker = np.concatenate((y_prob_tracker, y_prob_val))
+        batch_loss_val += torch.mean(loss_val.cpu()) 
 
-                y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
+        loss_tracker = np.concatenate((loss_tracker, loss_val.cpu().squeeze(-1).numpy()))
 
-                if ((t + 1) % wait_time == 0) or (t == total_batches - 1):
-                    try:
-                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                    except:
-                        auc_all = 0.0
+        y_prob_val = torch.sigmoid(y_pred_val.cpu())
+        y_prob_tracker = np.concatenate((y_prob_tracker, y_prob_val.squeeze(-1).numpy()))
+        y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
 
-                    if verbose:
-                        try:
-                            auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)
-                        except:
-                            auc_val = 0.0
+        if ((t + 1) % wait_time == 0) or (t == total_batches - 1):
+            try:
+                auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+            except:
+                auc_all = 0.0
 
-                        print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
-                    
-                    batch_loss_val = 0.0
+            if verbose:
+                try:
+                    auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)
+                except:
+                    auc_val = 0.0
+
+                print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
+            
+            batch_loss_val = 0.0
 
     return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker
