@@ -44,7 +44,7 @@ def build_transforms(mu, sig):
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
-def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321, renormalize=False,
+def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_idxs=None, random_seed=31321, renormalize=False,
                              min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
     '''
     Note: 
@@ -68,7 +68,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     if random_seed is not None:
         np.random.seed(random_seed)
         
-    df = filter_df(df, min_tiles, cancers)
+    df = filter_df(df, min_tiles, cancers, n_idxs=n_idxs, random_seed=random_seed)
         
     idxs = np.arange(df.shape[0])
     np.random.shuffle(idxs)
@@ -105,7 +105,10 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, random_seed=31321
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
 
 #################### DATA FILTERING ####################
-def filter_df(df, min_tiles=None, cancers=None, idxs=None):
+def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_idxs=None, random_seed=None):
+    if random_seed is not None:
+        np.random.seed(random_seed)
+        
     if idxs is not None:
         df = df.loc[idxs, :]
         
@@ -115,6 +118,12 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None):
     if cancers is not None:
         df = df[df['Type'].isin(cancers)]
     
+    if n_idxs is not None:
+        pts = np.arange(df.shape[0])
+        np.random.shuffle(pts)
+        keep = pts[:n_idxs]
+        df = df.iloc[keep, :]
+        
     df.reset_index(drop=True, inplace=True)
     
     df['n_tiles_end'] = df['n_tiles'].cumsum()

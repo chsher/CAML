@@ -32,8 +32,16 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, renormalize=args.renormalize, 
-                                                        min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
+if args.n_testtrain != 0 and args.n_testtest != 0:
+    tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
+    va_frac = 1.0 - tr_frac
+    datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                            min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers,
+                                                            n_idxs=args.n_testtrain + args.n_testtest)
+else:
+    datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                            min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
+    
 if args.test_val:
     train = datasets[0]
     transform_val = transforms.Compose([transforms.Normalize(mean=mu, std=sig)])

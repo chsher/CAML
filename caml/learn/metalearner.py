@@ -202,6 +202,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
     net.eval()
    
+    wait_time = max(n_testtrain // batch_size, 1)
     val_wait_time = max(n_testtest // batch_size, 1)
 
     loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])

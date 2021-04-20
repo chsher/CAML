@@ -23,7 +23,7 @@ set_image_backend('accimage')
 #################### TCGA DATASET ####################
 class TCGAdataset(Dataset):
     def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, apply_filter=True, 
-                 random_seed=31321):
+                 n_idxs=None, random_seed=31321):
         '''
         Args:
             df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
@@ -55,7 +55,7 @@ class TCGAdataset(Dataset):
             np.random.seed(random_seed)
         
         if apply_filter:
-            self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers)
+            self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers, n_idxs=n_idxs, random_seed=random_seed)
         
         idxs = np.arange(self.df.shape[0])
         np.random.shuffle(idxs)
@@ -89,10 +89,8 @@ class TCGAdataset(Dataset):
             jpeg_idx = int(idx - self.df.loc[df_idx, 'n_tiles_start'])
             filenames = np.array([jpegs[jpeg_idx]])
         elif self.unit == 'slide':
-            if len(jpegs) < self.num_tiles:
-                filenames = np.random.choice(jpegs, self.num_tiles, replace=True)
-            else:
-                filenames = np.random.choice(jpegs, self.num_tiles, replace=False)
+            replace = len(jpegs) < self.num_tiles
+            filenames = np.random.choice(jpegs, self.num_tiles, replace=replace)
 
         if len(filenames) == 1:
             img = data_utils.default_loader(os.path.join(filepath, filenames[0]))

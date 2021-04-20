@@ -66,8 +66,8 @@ def parse_args():
     parser.add_argument('--eta', type=float, default=0.01, help='global learning rate')
     parser.add_argument('--n_choose', type=int, default=5, help='number of tasks to sample during every training epoch')
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on meta-test train set')
-    parser.add_argument('--n_testtrain', type=int, default=50, help='number of examples on which to train during meta-test time')
-    parser.add_argument('--n_testtest', type=int, default=50, help='number of examples on which to test during meta-test time')
+    parser.add_argument('--n_testtrain', type=int, default=0, help='number of examples on which to train during meta-test time or train time')
+    parser.add_argument('--n_testtest', type=int, default=0, help='number of examples on which to test during meta-test time or test time')
     
     args = parser.parse_args()
     
