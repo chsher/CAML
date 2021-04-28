@@ -58,7 +58,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
 
 def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, 
                 criterions, device, n_steps, n_testtrain, n_testtest, patience, outfile, statsfile, n_choose=5, wait_time=1, 
-                training=True, pool=None, batch_size=None, num_tiles=None, verbose=True, random_seed=31321):
+                training=True, pool=None, batch_size=None, num_tiles=None, randomize=False, verbose=True, random_seed=31321):
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
     n_local = len(local_models)
@@ -72,7 +72,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
             ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
             grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, wait_time, 
-                                                  pool, batch_size, num_tiles, verbose)
+                                                  pool, batch_size, num_tiles, randomize, verbose)
             
             global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
             
@@ -116,7 +116,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
 
 
 def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterion, device, wait_time, 
-                    pool=None, batch_size=None, num_tiles=None, verbose=True, splits=['FwdOne', 'FwdTwo']):
+                    pool=None, batch_size=None, num_tiles=None, randomize=False, verbose=True, splits=['FwdOne', 'FwdTwo']):
     '''
     Note: 
     - Local training currently allows for only Adam optimizer
@@ -125,6 +125,8 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     net.eval()
 
     total_loss = 0.0
+    wait_time_orig = wait_time
+    batch_size_orig = batch_size
 
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
@@ -136,7 +138,13 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         loss_tracker, auc_tracker, y_prob_tracker, y_tracker = [], [], [], []
         local_model.train()
 
+        if randomize:
+            batch_size = 1
+            wait_time = np.random.choice(np.arange(1, batch_size_orig * wait_time_orig + 1))
+
         for i, (x, y) in enumerate(train_loader):
+            x = x[:batch_size, ]
+
             if pool is not None:
                 x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
                 y_pred = local_model(net(x))

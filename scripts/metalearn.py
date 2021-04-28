@@ -71,7 +71,7 @@ values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, arg
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt, 
-          args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest]
+          args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize]
 for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals]), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
@@ -87,7 +87,7 @@ criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduc
 metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, 
                         net, global_model, local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.n_testtest, 
                         args.patience, args.outfile, args.statsfile, n_choose=args.n_choose, wait_time=args.wait_time, training=args.training, 
-                        pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles)
+                        pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles, randomize=args.randomize)
 
 #################### N_STEPS ####################
 '''if args.test_val and args.grad_adapt:
