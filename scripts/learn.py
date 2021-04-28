@@ -37,7 +37,7 @@ if args.n_testtrain != 0 and args.n_testtest != 0:
     va_frac = 1.0 - tr_frac
     datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
                                                             min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers,
-                                                            n_idxs=args.n_testtrain + args.n_testtest)
+                                                            n_pts=args.n_testtrain + args.n_testtest)
 else:
     datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, renormalize=args.renormalize,
                                                             min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)

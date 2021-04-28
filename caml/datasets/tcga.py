@@ -22,8 +22,8 @@ set_image_backend('accimage')
 
 #################### TCGA DATASET ####################
 class TCGAdataset(Dataset):
-    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, apply_filter=True, 
-                 n_idxs=None, random_seed=31321):
+    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False, apply_filter=True, 
+                 n_pts=None, random_seed=31321):
         '''
         Args:
             df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
@@ -50,12 +50,13 @@ class TCGAdataset(Dataset):
         self.mag = mag
         self.H = H
         self.W = W
+        self.return_pt = return_pt
         
         if random_seed is not None:
             np.random.seed(random_seed)
         
         if apply_filter:
-            self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers, n_idxs=n_idxs, random_seed=random_seed)
+            self.df = data_utils.filter_df(self.df, self.min_tiles, self.cancers, n_pts=n_pts, random_seed=random_seed)
         
         idxs = np.arange(self.df.shape[0])
         np.random.shuffle(idxs)
@@ -105,4 +106,7 @@ class TCGAdataset(Dataset):
             
         y = torch.FloatTensor([self.df.loc[df_idx, self.label].item()])
         
-        return x, y
+        if self.return_pt:
+            return x, y, df_idx
+        else:
+            return x, y

@@ -44,7 +44,7 @@ def build_transforms(mu, sig):
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
-def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_idxs=None, random_seed=31321, renormalize=False,
+def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False,
                              min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
     '''
     Note: 
@@ -54,6 +54,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_idxs=None, rand
         df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
         train_frac (float): fraction of examples allocated to the train set
         val_frac (float): fraction of examples allocated to the val set
+        n_pts (int): number of patients to retain in the dataset
         random_seed (int): if not None, used to set the seed for numpy
         transform (torchvision.transforms.Compose): pytorch tensor transformations
         min_tiles (int): minimum number of tiles for patient to be included during sampling
@@ -68,7 +69,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_idxs=None, rand
     if random_seed is not None:
         np.random.seed(random_seed)
         
-    df = filter_df(df, min_tiles, cancers, n_idxs=n_idxs, random_seed=random_seed)
+    df = filter_df(df, min_tiles, cancers, n_pts=n_pts, random_seed=random_seed)
         
     idxs = np.arange(df.shape[0])
     np.random.shuffle(idxs)
@@ -105,7 +106,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_idxs=None, rand
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
 
 #################### DATA FILTERING ####################
-def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_idxs=None, random_seed=None):
+def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_pts=None, random_seed=None):
     if random_seed is not None:
         np.random.seed(random_seed)
         
@@ -118,10 +119,10 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_idxs=None, random_s
     if cancers is not None:
         df = df[df['Type'].isin(cancers)]
     
-    if n_idxs is not None:
+    if n_pts is not None and n_pts < df.shape[0]:
         pts = np.arange(df.shape[0])
         np.random.shuffle(pts)
-        keep = pts[:n_idxs]
+        keep = pts[:n_pts]
         df = df.iloc[keep, :]
         
     df.reset_index(drop=True, inplace=True)
