@@ -20,9 +20,9 @@ from sklearn.metrics import roc_auc_score
 PRINT_STMT = 'Epoch {0:3d}, Task {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 
-def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None, freeze=True, bias=True):
+def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_file=None, maml_file=None, bias=True, freeze=True, pretrained=True):
 
-    net = models.resnet18(pretrained=True)
+    net = models.resnet18(pretrained=pretrained)
     embed_size = net.fc.weight.shape[1]
     net.fc = nn.Sequential(nn.Dropout(dropout), nn.Linear(embed_size, output_size, bias=bias))
 

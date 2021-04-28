@@ -31,7 +31,7 @@ class FeedForwardNet(nn.Module):
             param.data = new_vals[idx].clone()
 
 class ClassifierNet(nn.Module):
-    def __init__(self, hidden_size, output_size, resfile=None, ffwdfile=None, dropout=0.0, freeze=True, bias=True, pool=None):
+    def __init__(self, hidden_size, output_size, resfile=None, ffwdfile=None, dropout=0.0, bias=True, pool=None, freeze=True, pretrained=True):
         super(ClassifierNet, self).__init__()
         self.hidden_size = hidden_size
         self.output_size = output_size
@@ -41,8 +41,9 @@ class ClassifierNet(nn.Module):
         self.dropout = dropout
         self.bias = bias
         self.pool = pool
+        self.pretrained = pretrained
 
-        self.resnet = models.resnet18(pretrained=True)
+        self.resnet = models.resnet18(pretrained=self.pretrained)
         self.embed_size = self.resnet.fc.weight.shape[1]
         self.resnet.fc = nn.Sequential(nn.Dropout(self.dropout), nn.Linear(self.embed_size, self.output_size, bias=self.bias))
 

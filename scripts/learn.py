@@ -63,12 +63,12 @@ print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed,
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
-          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.resfile, args.resfile_new, args.grad_adapt]
-for k,v in zip(script_utils.PARAMS[:-5] + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [len(train), len(val), mu, sig]):
+          ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt]
+for k,v in zip(script_utils.PARAMS[:-5] + ['N_TRAIN', 'N_TEST', 'TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [args.n_testtrain, args.n_testtest, len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, freeze=args.freeze, pool=args.pool)
+net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool, freeze=args.freeze, pretrained=args.pretrained)
 net.to(device)
 print(net)
 
