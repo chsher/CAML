@@ -30,35 +30,41 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-if args.renormalize:
-    ds = tcga.TCGAdataset(df, transform=None, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit='tile', cancers=args.cancers, 
-                          apply_filter=True, random_seed=args.random_seed)
-    mu, sig = data_utils.compute_stats(ds)
-else:
-    mu, sig = data_utils.NORMALIZER.mean, data_utils.NORMALIZER.std
-transform_train, transform_val = data_utils.build_transforms(mu, sig)
+assert args.testtest != 0
+assert args.batch_size * args.wait_time == args.n_testtrain
 
-trains = []
-for cancer in args.cancers:
-    tr = tcga.TCGAdataset(df, transform=transform_train, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer], 
-                          random_seed=args.random_seed)
-    trains.append(tr)
+dss = {'trains': [], 'vals': []}
+for cas, lab in zip([args.cancers, args.val_cancers], ['trains', 'vals']):
+    for cancer in cas:
+        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
+        n_testtrain = df_temp.shape[0] - args.n_testtest
 
-vals = []
-for cancer in args.val_cancers:
-    va = tcga.TCGAdataset(df, transform=transform_val, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer], 
-                          random_seed=args.random_seed)
-    vals.append(va)
+        tr_frac = n_testtrain / (n_testtrain + args.n_testtest)
+        va_frac = 1.0 - tr_frac
+
+        datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                                min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+        dss[lab].append(datasets)
 
 train_loaders = []
-for tr in trains:
-    tr_loader = DataLoader(tr, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+for tr in dss['trains']:
+    tr_loader = DataLoader(tr[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
     train_loaders.append(tr_loader)
 
-val_loaders = []
-for va in vals:
-    va_loader = DataLoader(va, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
-    val_loaders.append(va_loader)
+metatrain_loaders = []
+for va in dss['vals']:
+    va_loader = DataLoader(va[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+    metatrain_loaders.append(va_loader)
+
+metatest_loaders = []
+for va in dss['vals']:
+    va_loader = DataLoader(va[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+    metatest_loaders.append(va_loader)
+
+val_loaders = [metatrain_loaders, metatest_loaders]
+train_size = np.sum([len(tr[0]) for tr in dss['trains']])
+metatrain_size = np.sum([len(va[0]) for va in dss['vals']])
+metatest_size = np.sum([len(va[1]) for va in dss['vals']])
 
 #################### PRINT PARAMS ####################
 repo = Repo(search_parent_directories=True)
@@ -72,7 +78,7 @@ values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, arg
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt, 
           args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize]
-for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [np.sum([len(tr) for tr in trains]), np.sum([len(va) for va in vals]), mu, sig]):
+for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'METATRAIN_SIZE', 'METATEST_SIZE'], values + [train_size, metatrain_size, metatest_size]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################

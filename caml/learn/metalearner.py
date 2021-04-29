@@ -15,6 +15,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
+from tqdm.contrib import tzip
 from sklearn.metrics import roc_auc_score
 
 PRINT_STMT = 'Epoch {0:3d}, Task {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
@@ -125,9 +126,12 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     net.eval()
 
     total_loss = 0.0
-    wait_time_orig = wait_time
-    batch_size_orig = batch_size
-
+    
+    if randomize:
+        wait_time_orig = wait_time
+        batch_size_orig = batch_size
+        batch_size = 1
+            
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
     for t in tqdm(ts):
@@ -139,7 +143,6 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         local_model.train()
 
         if randomize:
-            batch_size = 1
             wait_time = np.random.choice(np.arange(1, batch_size_orig * wait_time_orig + 1))
 
         for i, (x, y) in enumerate(train_loader):
@@ -215,7 +218,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
     loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])
 
-    for t, val_loader in enumerate(tqdm(val_loaders)):
+    for t, (metatrain_loader, metatest_loader) in enumerate(tzip(*val_loaders)):
         optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
         criterion = criterions[0]
@@ -224,7 +227,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         
         # meta-test train
         for ns in range(n_steps):
-            for i, (x, y) in enumerate(val_loader):    
+            for i, (x, y) in enumerate(metatrain_loader):    
                 x = x[:n_testtrain, ]
                 y = y[:n_testtrain, ]
 
@@ -249,28 +252,27 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         global_model.eval()
 
         # meta-test test
-        for i, (x, y) in enumerate(val_loader):
-            if i >= wait_time:
-                x = x[:n_testtest, ]
-                y = y[:n_testtest, ]
+        for i, (x, y) in enumerate(metatest_loader):
+            x = x[:n_testtest, ]
+            y = y[:n_testtest, ]
 
-                with torch.no_grad():
-                    if pool is not None:
-                        x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-                        y_pred = global_model(net(x))
-                        y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
-                        y_pred = pool(y_pred, dim=1)
-                    else:
-                        y_pred = global_model(net(x.to(device)))
-                        
-                loss = criterion(y_pred, y.to(device)) / val_wait_time
-                loss_tracker = np.concatenate((loss_tracker, loss.cpu().squeeze(-1).numpy()))
-                
-                y_prob = torch.sigmoid(y_pred.cpu())    
-                y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
-                y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+            with torch.no_grad():
+                if pool is not None:
+                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                    y_pred = global_model(net(x))
+                    y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
+                    y_pred = pool(y_pred, dim=1)
+                else:
+                    y_pred = global_model(net(x.to(device)))
 
-            if i == (wait_time + val_wait_time) - 1:
+            loss = criterion(y_pred, y.to(device))
+            loss_tracker = np.concatenate((loss_tracker, loss.cpu().squeeze(-1).numpy()))
+
+            y_prob = torch.sigmoid(y_pred.cpu())    
+            y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
+            y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+
+            if i == val_wait_time - 1:
                 bs = val_wait_time * min(batch_size, n_testtest)
 
                 try:
@@ -292,4 +294,4 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
         global_model.update_params(global_theta)
 
-    return np.mean(np.vstack(np.split(loss_tracker, len(val_loaders))), axis=1), auc_tracker, y_tracker, y_prob_tracker
+    return np.mean(np.vstack(np.split(loss_tracker, len(val_loaders[0]))), axis=1), auc_tracker, y_tracker, y_prob_tracker
