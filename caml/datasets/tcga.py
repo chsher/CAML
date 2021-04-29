@@ -22,8 +22,8 @@ set_image_backend('accimage')
 
 #################### TCGA DATASET ####################
 class TCGAdataset(Dataset):
-    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False, apply_filter=True, 
-                 n_pts=None, random_seed=31321):
+    def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, 
+                 return_pt=False, apply_filter=True, n_pts=None, random_seed=31321):
         '''
         Args:
             df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
@@ -110,6 +110,6 @@ class TCGAdataset(Dataset):
         y = torch.FloatTensor([self.df.loc[df_idx, self.label].item()])
         
         if self.return_pt:
-            return x, y, df_idx
+            return x, y, self.df.loc[df_idx, 'case_barcode']
         else:
             return x, y

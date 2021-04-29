@@ -44,8 +44,8 @@ def build_transforms(mu, sig):
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
-def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False,
-                             min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256):
+def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False, min_tiles=1, 
+                             num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False):
     '''
     Note: 
         - currently only handles TCGAdataset datasets
@@ -88,7 +88,8 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False, random_seed=random_seed)
+        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False, 
+                              random_seed=random_seed, return_pt=return_pt)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
@@ -98,9 +99,11 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, random_seed=random_seed) 
+            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, 
+                                  random_seed=random_seed, return_pt=return_pt) 
         else:
-            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, random_seed=random_seed) 
+            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, 
+                                  random_seed=random_seed, return_pt=return_pt) 
         dss.append(ds)
         
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std

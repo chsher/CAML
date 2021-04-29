@@ -32,7 +32,11 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-if args.n_testtrain != 0 and args.n_testtest != 0:
+if args.n_testtest != 0:
+    if args.n_testtrain == 0:
+        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=args.cancers)
+        args.n_testtrain = df_temp.shape[0] - args.n_testtest
+        
     tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
     va_frac = 1.0 - tr_frac
     datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
