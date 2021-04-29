@@ -82,7 +82,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         
         #loss, auc, ys, yps = stats
         stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps, n_testtrain, n_testtest, wait_time, 
-                               pool, batch_size, num_tiles, verbose)
+                               pool, batch_size, num_tiles, randomize, verbose)
         
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f) 
@@ -186,9 +186,10 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 total_loss = 0.0
     
                 if verbose:
+                    bs = batch_size * wait_time
                     for j in range(2):
                         try:
-                            auc_tracker.append(roc_auc_score(y_tracker[j], y_prob_tracker[j]))
+                            auc_tracker.append(roc_auc_score(y_tracker[bs * j : bs * (j + 1)], y_prob_tracker[bs * j : bs * (j + 1)]))
                         except:
                             auc_tracker.append(0.0)
 
@@ -209,16 +210,21 @@ def run_global_train(global_theta, global_model, grads, eta):
 
 
 def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, n_testtest=50, wait_time=1, 
-                   pool=None, batch_size=None, num_tiles=None, verbose=True, splits=['TaskVal', 'CumVal']):
+                   pool=None, batch_size=None, num_tiles=None, verbose=True, randomize=False, splits=['TaskVal', 'CumVal']):
 
     net.eval()
    
+    n_testtrain_orig = n_testtrain
     wait_time = max(n_testtrain // batch_size, 1)
     val_wait_time = max(n_testtest // batch_size, 1)
 
     loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])
 
     for t, (metatrain_loader, metatest_loader) in enumerate(tzip(*val_loaders)):
+        if randomize:
+            n_testtrain = np.random.choice(np.arange(1, n_testtrain_orig + 1))
+            wait_time = max(n_testtrain // batch_size, 1)
+
         optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
         criterion = criterions[0]

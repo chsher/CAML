@@ -18,6 +18,8 @@ from torchvision import models, transforms
 import pickle
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+from tqdm.contrib import tzip
 
 #################### SETUP ####################
 args = script_utils.parse_args()
@@ -30,12 +32,12 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-assert args.testtest != 0
+assert args.n_testtest != 0
 assert args.batch_size * args.wait_time == args.n_testtrain
 
 dss = {'trains': [], 'vals': []}
-for cas, lab in zip([args.cancers, args.val_cancers], ['trains', 'vals']):
-    for cancer in cas:
+for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
+    for cancer in tqdm(cas):
         df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
         n_testtrain = df_temp.shape[0] - args.n_testtest
 
