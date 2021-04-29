@@ -17,6 +17,8 @@ import pandas as pd
 from tqdm import tqdm
 from sklearn.metrics import roc_auc_score
 
+import pdb
+
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 
@@ -162,6 +164,7 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
 
     net.eval()
     
+    wait_time = min(wait_time, len(val_loader))
     total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else len(val_loader)
     if total_batches == 0:
         total_batches = len(val_loader)
@@ -176,9 +179,9 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
         with torch.no_grad():
             y_pred_val = net(x_val.to(device))
 
-        loss_val = criterion(y_pred_val, y_val.to(device)) / wait_time
+        loss_val = criterion(y_pred_val, y_val.to(device)) 
 
-        batch_loss_val += torch.mean(loss_val.cpu()) 
+        batch_loss_val += torch.mean(loss_val.cpu()) / wait_time
 
         loss_tracker = np.concatenate((loss_tracker, loss_val.cpu().squeeze(-1).numpy()))
 

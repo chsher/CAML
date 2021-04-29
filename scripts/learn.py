@@ -72,7 +72,14 @@ for k,v in zip(script_utils.PARAMS[:-6] + ['N_TRAIN', 'N_TEST', 'TRAIN_SIZE', 'V
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool, freeze=args.freeze, pretrained=args.pretrained)
+ff = 'ff' in args.outfile
+if ff:
+    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool,
+                                    freeze=args.freeze, pretrained=args.pretrained)
+else:
+    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.outfile, ffwdfile=None, dropout=args.dropout, pool=args.pool,
+                                    freeze=args.freeze, pretrained=args.pretrained)
+    
 net.to(device)
 print(net)
 
@@ -82,7 +89,7 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile,
-                    resfile_new=args.resfile_new, wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=True, freeze=args.freeze)
+                    resfile_new=args.resfile_new, wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=ff, freeze=args.freeze)
 
 '''#################### VAL - NO ADAPT ####################
 if args.test_val:
