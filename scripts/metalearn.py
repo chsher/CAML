@@ -44,8 +44,13 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
         tr_frac = n_testtrain / (n_testtrain + args.n_testtest)
         va_frac = 1.0 - tr_frac
 
-        datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                                min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+        if lab == 'trains':
+            datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                                    min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
+        elif lab == 'vals':
+            datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                                    min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer],
+                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
         dss[lab].append(datasets)
 
 train_loaders = []

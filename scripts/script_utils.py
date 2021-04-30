@@ -70,8 +70,8 @@ def parse_args():
     parser.add_argument('--n_testtrain', type=int, default=0, help='number of examples on which to train during meta-test time or train time')
     parser.add_argument('--n_testtest', type=int, default=0, help='number of examples on which to test during meta-test time or test time')
     parser.add_argument('--randomize', default=False, action='store_true', help='whether to randomize the train size during meta-train')
-    parser.add_argument('--adjust_brightness', type=float, default=None, help='desired brightness (<1 darker, >1 brighter)')
-    parser.add_argument('--resize', type=int, default=None, help='desired image size to which to interpolate')
+    parser.add_argument('--adjust_brightness', type=float, default=None, help='desired brightness (<1 darker, >1 brighter) on meta-test set')
+    parser.add_argument('--resize', type=int, default=None, help='desired image size to which to interpolate on meta-test set')
             
     args = parser.parse_args()
     
