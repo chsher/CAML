@@ -44,19 +44,23 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
         tr_frac = n_testtrain / (n_testtrain + args.n_testtest)
         va_frac = 1.0 - tr_frac
 
-        if lab == 'trains':
+        if lab == 'trains' and args.training:
             datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
                                                                     min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
         elif lab == 'vals':
             datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
                                                                     min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer],
                                                                     adjust_brightness=args.adjust_brightness, resize=args.resize)
+        else:
+            datasets = [[], []]
+            
         dss[lab].append(datasets)
 
 train_loaders = []
-for tr in dss['trains']:
-    tr_loader = DataLoader(tr[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
-    train_loaders.append(tr_loader)
+if args.training:
+    for tr in dss['trains']:
+        tr_loader = DataLoader(tr[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+        train_loaders.append(tr_loader)
 
 metatrain_loaders = []
 for va in dss['vals']:

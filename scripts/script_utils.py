@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--val_frac', type=float, default=0.2, help='fraction of examples allocated to the val set')
     parser.add_argument('--batch_size', type=int, default=200, help='number of examples per batch')
     parser.add_argument('--wait_time', type=int, default=1, help='number of batches collected before backward pass')
-    parser.add_argument('--max_batches', type=int, default=20, help='max number of batches per epoch (-1: include all)')
+    parser.add_argument('--max_batches', nargs='*', default=[-1, -1], help='max number of batches during train, val per epoch (-1: all)')
     parser.add_argument('--pin_memory', default=False, action='store_true', help='whether to pin memory during data loading')
     parser.add_argument('--n_workers', type=int, default=12, help='number of workers to use during data loading')
     parser.add_argument('--random_seed', type=int, default=31321, help='random seed of the dataset and data filter')

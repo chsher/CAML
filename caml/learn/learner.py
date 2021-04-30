@@ -32,7 +32,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
 
     for n in tqdm(range(n_epochs)):
         if training:
-            run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time, max_batches)
+            run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time, max_batches[0])
         
         #loss, auc, ys, yps = stats
         if grad_adapt:
@@ -42,7 +42,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
                                                n_testtrain, verbose)
         else:
-            stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches)
+            stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches[1])
         
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
