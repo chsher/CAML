@@ -10,7 +10,7 @@ PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'M
           'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
           'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
           'VAL_CANCERS', 'TEST_VAL', 'HID_DIM', 'FREEZE', 'PRETRAINED', 'RES_DICT', 'RES_DICT_NEW', 'GRAD_ADAPT', 
-          'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'RANDOMIZE']
+          'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'RANDOMIZE', 'BRIGHTNESS', 'RESIZE']
 
 POOL_KEY = {
     'max': torch.max,
@@ -70,7 +70,9 @@ def parse_args():
     parser.add_argument('--n_testtrain', type=int, default=0, help='number of examples on which to train during meta-test time or train time')
     parser.add_argument('--n_testtest', type=int, default=0, help='number of examples on which to test during meta-test time or test time')
     parser.add_argument('--randomize', default=False, action='store_true', help='whether to randomize the train size during meta-train')
-    
+    parser.add_argument('--adjust_brightness', type=float, default=None, help='desired brightness (<1 darker, >1 brighter)')
+    parser.add_argument('--resize', type=int, default=None, help='desired image size to which to interpolate')
+            
     args = parser.parse_args()
     
     args.pool = POOL_KEY.get(args.pool, None)

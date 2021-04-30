@@ -23,7 +23,7 @@ set_image_backend('accimage')
 #################### TCGA DATASET ####################
 class TCGAdataset(Dataset):
     def __init__(self, df, transform=None, min_tiles=1, num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, 
-                 return_pt=False, apply_filter=True, n_pts=None, random_seed=31321):
+                 return_pt=False, apply_filter=True, n_pts=None, adjust_brightness=None, resize=None, random_seed=31321):
         '''
         Args:
             df (pandas.DataFrame): table with patient metadata (n_tiles, Type, n_tiles_start, n_tiles_end, basename)
@@ -53,6 +53,8 @@ class TCGAdataset(Dataset):
         self.return_pt = return_pt
         self.apply_filter = apply_filter
         self.n_pts = n_pts
+        self.adjust_brightness = adjust_brightness
+        self.resize = resize
         self.random_seed = random_seed
         
         if self.random_seed is not None:
@@ -98,12 +100,12 @@ class TCGAdataset(Dataset):
 
         if len(filenames) == 1:
             img = data_utils.default_loader(os.path.join(filepath, filenames[0]))
-            x = data_utils.process_img(img, self.transform, self.H, self.W)
+            x = data_utils.process_img(img, self.transform, self.H, self.W, adjust_brightness=self.adjust_brightness, resize=self.resize)
         elif len(filenames) > 1:
             imgs = []
             for filename in filenames:
                 img = data_utils.default_loader(os.path.join(filepath, filename))
-                img = data_utils.process_img(img, self.transform, self.H, self.W)
+                img = data_utils.process_img(img, self.transform, self.H, self.W, adjust_brightness=self.adjust_brightness, resize=self.resize)
                 imgs.append(img)
             x = torch.stack(imgs)
             

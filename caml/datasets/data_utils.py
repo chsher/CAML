@@ -33,6 +33,7 @@ TRANSFORMER = transforms.Compose([transforms.ToPILImage(),
                                 transforms.ToTensor(), NORMALIZER])
 
 def build_transforms(mu, sig):
+    
     normalizer = transforms.Normalize(mean=mu, std=sig) 
 
     transformer = transforms.Compose([transforms.ToPILImage(),
@@ -44,8 +45,8 @@ def build_transforms(mu, sig):
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
-def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False, min_tiles=1, 
-                             num_tiles=100, cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False):
+def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False, min_tiles=1, num_tiles=100, 
+                             cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False, adjust_brightness=None, resize=None):
     '''
     Note: 
         - currently only handles TCGAdataset datasets
@@ -66,6 +67,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         H (int): tile height
         W (int): tile width
     '''
+    
     if random_seed is not None:
         np.random.seed(random_seed)
         
@@ -88,8 +90,8 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], None, min_tiles, num_tiles, cancers, label, 'tile', mag, H, W, apply_filter=False, 
-                              random_seed=random_seed, return_pt=return_pt)
+        ds = tcga.TCGAdataset(dfs[0], transform=None, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit='tile', mag=mag, H=H, 
+                              W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
@@ -99,17 +101,18 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transform_train, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, 
-                                  random_seed=random_seed, return_pt=return_pt) 
+            ds = tcga.TCGAdataset(d, transform=transform_train, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, H=H, 
+                                  W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
         else:
-            ds = tcga.TCGAdataset(d, transform_val, min_tiles, num_tiles, cancers, label, unit, mag, H, W, apply_filter=False, 
-                                  random_seed=random_seed, return_pt=return_pt) 
+            ds = tcga.TCGAdataset(d, transform=transform_val, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, H=H, 
+                                  W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
         dss.append(ds)
         
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
 
 #################### DATA FILTERING ####################
 def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_pts=None, random_seed=None):
+    
     if random_seed is not None:
         np.random.seed(random_seed)
         
@@ -137,6 +140,7 @@ def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_pts=None, random_se
 
 #################### STATS COMPUTING ####################
 def compute_stats(train_dataset, batch_size=200, max_batches=240, pin_memory=False, num_workers=12):
+    
     loader = DataLoader(train_dataset, batch_size=batch_size, drop_last=True, shuffle=True,
                         pin_memory=pin_memory, num_workers=num_workers)
     
@@ -215,8 +219,21 @@ def pad_img(img, H, W):
     
     return F.pad(img, padding, mode='constant', value=0)     
 
-def process_img(img, transform, H, W):
+def process_img(img, transform, H, W, adjust_brightness=None, resize=None):
+    
     img = img_to_tensor(img)
+    
+    if adjust_brightness is not None:
+        tr = [transforms.Compose([transforms.ToPILImage()])]
+        img = tr(transforms.functional.adjust_brightness(img, adjust_brightness))
+        tr = [transforms.Compose([transforms.ToTensor()])]
+        img = tr(img)
+        
+    if resize is not None:
+        tr = transforms.Compose([transforms.ToPILImage(), 
+                                 transforms.Resize(resize), 
+                                 transforms.ToTensor()]) 
+        img = tr(img)
     
     if transform is not None:
         img = transform(img)

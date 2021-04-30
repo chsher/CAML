@@ -79,7 +79,7 @@ values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, arg
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
           args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt, 
-          args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize]
+          args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize, args.adjust_brightness, args.resize]
 for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'METATRAIN_SIZE', 'METATEST_SIZE'], values + [train_size, metatrain_size, metatest_size]):
     print('{0:12} {1}'.format(k, v))
 
