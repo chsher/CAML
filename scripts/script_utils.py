@@ -27,7 +27,7 @@ def parse_args():
     parser.add_argument('--val_frac', type=float, default=0.2, help='fraction of examples allocated to the val set')
     parser.add_argument('--batch_size', type=int, default=200, help='number of examples per batch')
     parser.add_argument('--wait_time', type=int, default=1, help='number of batches collected before backward pass')
-    parser.add_argument('--max_batches', nargs='*', default=[-1, -1], help='max number of batches during train, val per epoch (-1: all)')
+    parser.add_argument('--max_batches', nargs='*', type=int, default=[-1, -1], help='max number of batches during train, val per epoch (-1: all)')
     parser.add_argument('--pin_memory', default=False, action='store_true', help='whether to pin memory during data loading')
     parser.add_argument('--n_workers', type=int, default=12, help='number of workers to use during data loading')
     parser.add_argument('--random_seed', type=int, default=31321, help='random seed of the dataset and data filter')
@@ -48,13 +48,13 @@ def parse_args():
     parser.add_argument('--num_tiles', type=int, default=400, help='max number of tiles to retain per patient')
     parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
     parser.add_argument('--pool', type=str, default=None, help='pooling mechanism to use if input unit is slide')
-    parser.add_argument('--cancers', nargs='*', default=TRAIN_CANCERS, help='list of cancers to include [in the train set]')
+    parser.add_argument('--cancers', nargs='*', type=str, default=TRAIN_CANCERS, help='list of cancers to include [in the train set]')
     parser.add_argument('--infile', type=str, default=METADATA_FILEPATH, help='file path to metadata dataframe')
     parser.add_argument('--outfile', type=str, default='/home/schao/temp.pt', help='file path to save the model state dict')
     parser.add_argument('--statsfile', type=str, default='/home/schao/temp.pkl', help='file path to save the per-epoch val stats')
     
     # task parameters
-    parser.add_argument('--val_cancers', nargs='*', default=VAL_CANCERS, help='list of cancers to include in the val set')
+    parser.add_argument('--val_cancers', nargs='*', type=str, default=VAL_CANCERS, help='list of cancers to include in the val set')
     parser.add_argument('--test_val', default=False, action='store_true', help='whether to test non-meta-learned model on val cancers')
     parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
     parser.add_argument('--freeze', default=False, action='store_true', help='whether to freeze the resnet layers')
@@ -69,7 +69,7 @@ def parse_args():
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on meta-test train set')
     parser.add_argument('--n_testtrain', type=int, default=0, help='number of examples on which to train during meta-test time or train time')
     parser.add_argument('--n_testtest', type=int, default=0, help='number of examples on which to test during meta-test time or test time')
-    parser.add_argument('--randomize', default=False, action='store_true', help='whether to randomize the train size during meta-train')
+    parser.add_argument('--randomize', default=False, action='store_true', help='whether to randomize the train size during meta-train/-test')
     parser.add_argument('--adjust_brightness', type=float, default=None, help='desired brightness (<1 darker, >1 brighter) on meta-test set')
     parser.add_argument('--resize', type=int, default=None, help='desired image size to which to interpolate on meta-test set')
             
