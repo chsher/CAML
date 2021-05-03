@@ -224,9 +224,9 @@ def process_img(img, transform, H, W, adjust_brightness=None, resize=None):
     img = img_to_tensor(img)
     
     if adjust_brightness is not None:
-        tr = [transforms.Compose([transforms.ToPILImage()])]
+        tr = transforms.Compose([transforms.ToPILImage()])
         img = tr(transforms.functional.adjust_brightness(img, adjust_brightness))
-        tr = [transforms.Compose([transforms.ToTensor()])]
+        tr = transforms.Compose([transforms.ToTensor()])
         img = tr(img)
         
     if resize is not None:
