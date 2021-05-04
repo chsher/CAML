@@ -47,6 +47,27 @@ def build_transforms(mu, sig):
     return transformer, transforms.Compose([normalizer])
     
 #################### DATA SPLITTING ####################
+def compute_fracs(df, n_testtrain, n_testtest, train_frac, val_frac):
+    
+    if n_testtest != 0 or n_testtrain != 0:
+
+        if n_testtest != 0 and n_testtrain == 0:
+            n_testtrain = df.shape[0] - n_testtest
+
+        elif n_testtest == 0 and n_testtrain != 0:
+            n_testtest = df.shape[0] - n_testtrain
+
+        tr_frac = n_testtrain / (n_testtrain + n_testtest)
+        va_frac = 1.0 - tr_frac
+        n_pts = n_testtrain + n_testtest
+
+    else:
+        tr_frac = train_frac
+        va_frac = val_frac
+        n_pts = df.shape[0]
+        
+    return tr_frac, va_frac, n_pts
+
 def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, random_seed=31321, renormalize=False, min_tiles=1, num_tiles=100, 
                              cancers=None, label='WGD', unit='tile', mag='10.0', H=256, W=256, return_pt=False, adjust_brightness=None, resize=None):
     '''

@@ -50,25 +50,7 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
         if (lab == 'trains' and args.training) or lab == 'vals':
 
             df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
-
-            if args.n_testtest != 0 or args.n_testtrain != 0:
-
-                if args.n_testtest != 0 and args.n_testtrain == 0:
-                    n_testtest = args.n_testtest
-                    n_testtrain = df_temp.shape[0] - n_testtest
-
-                elif args.n_testtest == 0 and args.n_testtrain != 0:
-                    n_testtrain = args.n_testtrain
-                    n_testtest = df_temp.shape[0] - n_testtrain
-
-                tr_frac = n_testtrain / (n_testtrain + n_testtest)
-                va_frac = 1.0 - tr_frac
-                n_pts = n_testtrain + n_testtest
-                
-            else:
-                tr_frac = args.train_frac
-                va_frac = args.val_frac
-                n_pts = df_temp.shape[0]
+            tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
             if lab == 'trains' and args.training:
                 datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
