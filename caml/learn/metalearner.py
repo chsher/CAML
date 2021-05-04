@@ -133,7 +133,6 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     if randomize:
         wait_time_orig = wait_time
         batch_size_orig = batch_size
-        batch_size = 1
             
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
@@ -146,30 +145,32 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         local_model.train()
 
         if randomize:
-            wait_time = np.random.choice(np.arange(1, batch_size_orig * wait_time_orig + 1))
+            wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
 
-        for i, (x, y) in enumerate(train_loader):
-            x = x[:batch_size, ]
+        for h in range(2):
+            for i, (x, y) in enumerate(train_loader):
+                if i >= wait_time:
+                    break
+                    
+                if pool is not None:
+                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                    y_pred = local_model(net(x))
+                    y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
+                    y_pred = pool(y_pred, dim=1)
+                else:
+                    y_pred = local_model(net(x.to(device)))
 
-            if pool is not None:
-                x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-                y_pred = local_model(net(x))
-                y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
-                y_pred = pool(y_pred, dim=1)
-            else:
-                y_pred = local_model(net(x.to(device)))
-            
-            loss = criterion(y_pred, y.to(device)) / wait_time
-            loss.backward()
+                loss = criterion(y_pred, y.to(device)) / wait_time
+                loss.backward()
 
-            total_loss += loss.detach().cpu().numpy()
+                total_loss += loss.detach().cpu().numpy()
 
-            y_prob = torch.sigmoid(y_pred.detach().cpu())
-            y_prob_tracker.append(y_prob.squeeze(-1).numpy())
-            y_tracker.append(y.squeeze(-1).numpy())
+                y_prob = torch.sigmoid(y_pred.detach().cpu())
+                y_prob_tracker.append(y_prob.squeeze(-1).numpy())
+                y_tracker.append(y.squeeze(-1).numpy())
                 
             # first forward pass, update local params
-            if i == wait_time - 1:
+            if h == 0:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -177,7 +178,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 total_loss = 0.0
                 
             # second forward pass, store local grads
-            if i == (wait_time * 2) - 1:
+            if h == 1:
                 grads[0] = grads[0] + local_model.lnr1.weight.grad.data
                 grads[1] = grads[1] + local_model.lnr1.bias.grad.data
                 grads[2] = grads[2] + local_model.lnr2.weight.grad.data

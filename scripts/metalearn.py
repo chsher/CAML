@@ -96,7 +96,7 @@ for va in dss['vals']:
 
 metatest_loaders = []
 for va in dss['vals']:
-    va_loader = DataLoader(va[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+    va_loader = DataLoader(va[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)
     metatest_loaders.append(va_loader)
 
 val_loaders = [metatrain_loaders, metatest_loaders]
