@@ -216,17 +216,25 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                    pool=None, batch_size=None, num_tiles=None, randomize=False, verbose=True, splits=['TaskVal', 'CumVal']):
 
     net.eval()
-   
-    n_testtrain_orig = n_testtrain
-    wait_time = max(n_testtrain // batch_size, 1)
-    val_wait_time = max(n_testtest // batch_size, 1)
 
-    loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([])
+    n_testtrain_orig = n_testtrain
+        
+    losses_tracker, loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
 
     for t, (metatrain_loader, metatest_loader) in enumerate(tzip(*val_loaders)):
+    
         if randomize:
-            n_testtrain = np.random.choice(np.arange(1, n_testtrain_orig + 1))
-            wait_time = max(n_testtrain // batch_size, 1)
+            n_testtrain = np.random.choice(np.arange(1, n_testtrain_orig + 1))   
+            
+            if n_testtrain % batch_size == 0:
+                train_batch_size = batch_size
+            else:
+                train_batch_size = 1
+                
+            wait_time = max(min(len(metatrain_loader), n_testtrain // train_batch_size), 1) 
+            
+        else:
+            train_batch_size = batch_size
 
         optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
@@ -237,13 +245,13 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         # meta-test train
         for ns in range(n_steps):
             for i, (x, y) in enumerate(metatrain_loader):    
-                x = x[:n_testtrain, ]
-                y = y[:n_testtrain, ]
+                x = x[:train_batch_size, ]
+                y = y[:train_batch_size, ]
 
                 if pool is not None:
                     x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
                     y_pred = global_model(net(x))
-                    y_pred = y_pred.contiguous().view(min(batch_size, n_testtrain), num_tiles, -1)
+                    y_pred = y_pred.contiguous().view(train_batch_size, num_tiles, -1)
                     y_pred = pool(y_pred, dim=1)
                 else:
                     y_pred = global_model(net(x.to(device)))
@@ -255,52 +263,50 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                     optimizer.step()
                     optimizer.zero_grad()
                     break
-
+        
         criterion = criterions[1]
         
         global_model.eval()
 
+        bs = 0
+        
         # meta-test test
         for i, (x, y) in enumerate(metatest_loader):
-            x = x[:n_testtest, ]
-            y = y[:n_testtest, ]
-
+            val_batch_size = x.shape[0]
+            bs += val_batch_size
+            
             with torch.no_grad():
                 if pool is not None:
                     x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
                     y_pred = global_model(net(x))
-                    y_pred = y_pred.contiguous().view(min(batch_size, n_testtest), num_tiles, -1)
+                    y_pred = y_pred.contiguous().view(val_batch_size, num_tiles, -1)
                     y_pred = pool(y_pred, dim=1)
                 else:
                     y_pred = global_model(net(x.to(device)))
 
             loss = criterion(y_pred, y.to(device))
-            loss_tracker = np.concatenate((loss_tracker, loss.cpu().squeeze(-1).numpy()))
+            losses_tracker = np.concatenate((losses_tracker, loss.cpu().squeeze(-1).numpy()))
 
             y_prob = torch.sigmoid(y_pred.cpu())    
             y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
             y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
 
-            if i == val_wait_time - 1:
-                bs = val_wait_time * min(batch_size, n_testtest)
+        try:
+            auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
+        except:
+            auc = 0.0
 
-                try:
-                    auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
-                except:
-                    auc = 0.0
+        auc_tracker = np.concatenate((auc_tracker, [auc]))
+        loss_tracker = np.concatenate((loss_tracker, [np.mean(losses_tracker[-bs:])]))
 
-                auc_tracker = np.concatenate((auc_tracker, [auc]))
+        if verbose:
+            try:
+                auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+            except:
+                auc_all = 0.0
 
-                if verbose:
-                    try:
-                        auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                    except:
-                        auc_all = 0.0
-
-                    print(PRINT_STMT.format(epoch_num, t, np.mean(loss_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
-
-                break
+            print(PRINT_STMT.format(epoch_num, t, np.mean(loss_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
 
         global_model.update_params(global_theta)
 
-    return np.mean(np.vstack(np.split(loss_tracker, len(val_loaders[0]))), axis=1), auc_tracker, y_tracker, y_prob_tracker
+    return loss_tracker, auc_tracker, y_tracker, y_prob_tracker

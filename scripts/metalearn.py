@@ -54,14 +54,16 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
             if args.n_testtest != 0 or args.n_testtrain != 0:
 
                 if args.n_testtest != 0 and args.n_testtrain == 0:
-                    args.n_testtrain = df_temp.shape[0] - args.n_testtest
+                    n_testtest = args.n_testtest
+                    n_testtrain = df_temp.shape[0] - n_testtest
 
                 elif args.n_testtest == 0 and args.n_testtrain != 0:
-                    args.n_testtest = df_temp.shape[0] - args.n_testtrain
+                    n_testtrain = args.n_testtrain
+                    n_testtest = df_temp.shape[0] - n_testtrain
 
-                tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
+                tr_frac = n_testtrain / (n_testtrain + n_testtest)
                 va_frac = 1.0 - tr_frac
-                n_pts = args.n_testtrain + args.n_testtest
+                n_pts = n_testtrain + n_testtest
                 
             else:
                 tr_frac = args.train_frac
