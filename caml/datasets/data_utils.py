@@ -79,11 +79,11 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
     np.random.shuffle(idxs)
     
     if train_frac < 1:
-        val_start = int(train_frac * len(idxs))
+        val_start = round(train_frac * len(idxs))
         dfs = [filter_df(df, idxs=idxs[:val_start])]
         
         if train_frac + val_frac < 1:
-            test_start = int((train_frac + val_frac) * len(idxs))
+            test_start = round((train_frac + val_frac) * len(idxs))
             dfs.append(filter_df(df, idxs=idxs[val_start:test_start]))
             dfs.append(filter_df(df, idxs=idxs[test_start:]))
         else:
@@ -92,8 +92,8 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], transform=None, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit='tile', mag=mag, H=H, 
-                              W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize)
+        ds = tcga.TCGAdataset(dfs[0], transform=None, min_tiles=min_tiles, num_tiles=round(20000 / len(dfs[0])), cancers=cancers, label=label, unit='tile', mag=mag, 
+                              H=H, W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
@@ -103,11 +103,11 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
     dss = []
     for i, d in enumerate(dfs):
         if i == 0:
-            ds = tcga.TCGAdataset(d, transform=transform_train, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, H=H, 
-                                  W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
+            ds = tcga.TCGAdataset(d, transform=transform_train, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, 
+                                  H=H, W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
         else:
-            ds = tcga.TCGAdataset(d, transform=transform_val, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, H=H, 
-                                  W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
+            ds = tcga.TCGAdataset(d, transform=transform_val, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, 
+                                  H=H, W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
         dss.append(ds)
         
     return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
