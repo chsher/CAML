@@ -92,7 +92,7 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         dfs = [filter_df(df, idxs=idxs)]
 
     if renormalize:
-        ds = tcga.TCGAdataset(dfs[0], transform=None, min_tiles=min_tiles, num_tiles=round(20000 / len(dfs[0])), cancers=cancers, label=label, unit='tile', mag=mag, 
+        ds = tcga.TCGAdataset(dfs[0], transform=None, min_tiles=min_tiles, num_tiles=1000, cancers=cancers, label=label, unit='tile', mag=mag, 
                               H=H, W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize)
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
