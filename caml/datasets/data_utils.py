@@ -18,6 +18,8 @@ from torchvision import transforms, set_image_backend, get_image_backend
 import accimage
 from PIL import Image
 
+import pdb
+
 JPEG_DIR = '/home/schao/jpeg'
 set_image_backend('accimage')
 

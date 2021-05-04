@@ -21,6 +21,8 @@ import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib import tzip
 
+import pdb
+
 #################### SETUP ####################
 args = script_utils.parse_args()
 
@@ -44,33 +46,36 @@ dss = {'trains': [], 'vals': []}
 for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
     for cancer in tqdm(cas):
+        
+        if (lab == 'trains' and args.training) or lab == 'vals':
 
-        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
+            df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
 
-        if args.n_testtest != 0 or args.n_testtrain != 0:
+            if args.n_testtest != 0 or args.n_testtrain != 0:
 
-            if args.n_testtest != 0 and args.n_testtrain == 0:
-                args.n_testtrain = df_temp.shape[0] - args.n_testtest
+                if args.n_testtest != 0 and args.n_testtrain == 0:
+                    args.n_testtrain = df_temp.shape[0] - args.n_testtest
 
-            elif args.n_testtest == 0 and args.n_testtrain != 0:
-                args.n_testtest = df_temp.shape[0] - args.n_testtrain
+                elif args.n_testtest == 0 and args.n_testtrain != 0:
+                    args.n_testtest = df_temp.shape[0] - args.n_testtrain
 
-            tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
-            va_frac = 1.0 - tr_frac
-            n_pts = args.n_testtrain + args.n_testtest
+                tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
+                va_frac = 1.0 - tr_frac
+                n_pts = args.n_testtrain + args.n_testtest
+                
+            else:
+                tr_frac = args.train_frac
+                va_frac = args.val_frac
+                n_pts = df_temp.shape[0]
 
-        else:
-            tr_frac = args.train_frac
-            va_frac = args.val_frac
-            n_pts = df_temp.shape[0]
-
-        if lab == 'trains' and args.training:
-            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                                    min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer])
-        elif lab == 'vals':
-            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                                    min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=[cancer],
-                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
+            if lab == 'trains' and args.training:
+                datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                    unit=args.unit, cancers=[cancer])
+            elif lab == 'vals':
+                datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                    unit=args.unit, cancers=[cancer], adjust_brightness=args.adjust_brightness, resize=args.resize)
         else:
             datasets = [[], []]
             
