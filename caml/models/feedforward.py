@@ -50,6 +50,7 @@ class ClassifierNet(nn.Module):
         if self.resfile is not None and os.path.exists(self.resfile):
             saved_state = torch.load(self.resfile, map_location=lambda storage, loc: storage)
             self.resnet.load_state_dict(saved_state)
+            print('-' * 30, 'LOADED RESNET', '-' * 30)
 
         if self.freeze:
             for param in self.resnet.parameters():
@@ -61,6 +62,7 @@ class ClassifierNet(nn.Module):
             if os.path.exists(self.ffwdfile):
                 saved_state = torch.load(self.ffwdfile, map_location=lambda storage, loc: storage)
                 self.ff.load_state_dict(saved_state)
+                print('-' * 28, 'LOADED FEEDFWDNET', '-' * 28)
         else:
             self.ff = None
         

@@ -233,7 +233,8 @@ def process_img(img, transform, H, W, adjust_brightness=None, resize=None):
         
     if resize is not None:
         tr = transforms.Compose([transforms.ToPILImage(), 
-                                 transforms.Resize(resize), 
+                                 transforms.Resize(resize),
+                                 transforms.Resize(H),
                                  transforms.ToTensor()]) 
         img = tr(img)
     

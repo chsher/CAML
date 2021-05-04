@@ -32,6 +32,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
     if resnet_file is not None and os.path.exists(resnet_file):
         saved_state = torch.load(resnet_file, map_location=lambda storage, loc: storage)
         net.load_state_dict(saved_state)
+        print('-' * 30, 'LOADED RESNET', '-' * 30)
 
     net.fc = nn.Identity()
     net.to(device)
@@ -45,6 +46,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
     if maml_file is not None and os.path.exists(maml_file):
         saved_state = torch.load(maml_file, map_location=lambda storage, loc: storage)
         global_model.load_state_dict(saved_state)
+        print('-' * 28, 'LOADED FEEDFWDNET', '-' * 28)
     
     global_model.to(device)
 
