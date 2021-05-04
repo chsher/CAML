@@ -32,19 +32,27 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-if args.n_testtest != 0:
-    if args.n_testtrain == 0:
-        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=args.cancers)
+df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=args.cancers)
+
+if args.n_testtest != 0 or args.n_testtrain != 0:
+
+    if args.n_testtest != 0 and args.n_testtrain == 0:
         args.n_testtrain = df_temp.shape[0] - args.n_testtest
-        
+
+    elif args.n_testtest == 0 and args.n_testtrain != 0:
+        args.n_testtest = df_temp.shape[0] - args.n_testtrain
+
     tr_frac = args.n_testtrain / (args.n_testtrain + args.n_testtest)
     va_frac = 1.0 - tr_frac
-    datasets, mu, sig = data_utils.split_datasets_by_sample(df, tr_frac, va_frac, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                            min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers,
-                                                            n_pts=args.n_testtrain + args.n_testtest)
+    n_pts = args.n_testtrain + args.n_testtest
+
 else:
-    datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                            min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
+    tr_frac = args.train_frac
+    va_frac = args.val_frac
+    n_pts = df_temp.shape[0]
+
+datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, renormalize=args.renormalize,
+                                                        min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
     
 if args.test_val:
     train = datasets[0]
@@ -54,8 +62,7 @@ if args.test_val:
 else:
     train, val = datasets
 
-shuffle = False if args.max_batches[0] != -1 else True
-train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=shuffle, drop_last=True)
+train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)
 args.max_batches = [args.max_batches[0], args.max_batches[0]] if len(args.max_batches) == 1 else args.max_batches
 
