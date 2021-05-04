@@ -51,14 +51,15 @@ else:
     va_frac = args.val_frac
     n_pts = df_temp.shape[0]
 
-datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, renormalize=args.renormalize,
-                                                        min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers)
+datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, 
+                                                        cancers=args.cancers, label=args.label)
     
 if args.test_val:
     train = datasets[0]
     transform_val = transforms.Compose([transforms.Normalize(mean=mu, std=sig)])
-    val = tcga.TCGAdataset(df, transform=transform_val, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, 
-                           cancers=args.val_cancers, random_seed=args.random_seed)
+    val = tcga.TCGAdataset(df, transform=transform_val, random_seed=args.random_seed, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, 
+                           cancers=args.val_cancers, label=args.label)
 else:
     train, val = datasets
 
@@ -75,7 +76,7 @@ print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed,
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
-          args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
+          args.output_size, args.min_tiles, args.num_tiles, args.label, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt]
 for k,v in zip(script_utils.PARAMS[:-9] + ['N_TRAIN', 'N_TEST', 'TRAIN_SIZE', 'VAL_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [args.n_testtrain, args.n_testtest, len(train), len(val), mu, sig]):
     print('{0:12} {1}'.format(k, v))

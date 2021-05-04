@@ -8,7 +8,7 @@ VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC
 
 PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 'RANDOM_SEED',
           'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
-          'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
+          'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'LABEL', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
           'VAL_CANCERS', 'TEST_VAL', 'HID_DIM', 'FREEZE', 'PRETRAINED', 'RES_DICT', 'RES_DICT_NEW', 'GRAD_ADAPT', 
           'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'RANDOMIZE', 'BRIGHTNESS', 'RESIZE', 'STEPS']
 
@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('--output_size', type=int, default=1, help='model output dimension')
     parser.add_argument('--min_tiles', type=int, default=1, help='min number of tiles for patient to be included during sampling')
     parser.add_argument('--num_tiles', type=int, default=400, help='max number of tiles to retain per patient')
+    parser.add_argument('--label', type=str, default='WGD', help='label on which to perform classification task')
     parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
     parser.add_argument('--pool', type=str, default=None, help='pooling mechanism to use if input unit is slide')
     parser.add_argument('--cancers', nargs='*', type=str, default=TRAIN_CANCERS, help='list of cancers to include [in the train set]')

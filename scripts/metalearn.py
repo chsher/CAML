@@ -72,12 +72,13 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
             if lab == 'trains' and args.training:
                 datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                    unit=args.unit, cancers=[cancer])
+                                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                        unit=args.unit, cancers=[cancer], label=args.label)
             elif lab == 'vals':
                 datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                    unit=args.unit, cancers=[cancer], adjust_brightness=args.adjust_brightness, resize=args.resize)
+                                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                        unit=args.unit, cancers=[cancer], label=args.label,
+                                                                        adjust_brightness=args.adjust_brightness, resize=args.resize)
         else:
             datasets = [[], []]
             
@@ -113,7 +114,7 @@ print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
-          args.output_size, args.min_tiles, args.num_tiles, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
+          args.output_size, args.min_tiles, args.num_tiles, args.label, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt, 
           args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize, args.adjust_brightness, args.resize, args.steps]
 for k,v in zip(script_utils.PARAMS + ['TRAIN_SIZE', 'METATRAIN_SIZE', 'METATEST_SIZE'], values + [train_size, metatrain_size, metatest_size]):
