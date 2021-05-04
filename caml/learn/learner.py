@@ -74,7 +74,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                         net.resnet.load_state_dict(saved_state_new)
                 else:
                     net.resnet.load_state_dict(saved_state)
-                print('----- RELOADED MODEL -----')
+                print('----- RELOADED MODEL ----- | Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
                 tally = 0
                 
         if loss < best_loss: 
