@@ -34,13 +34,6 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-if args.n_testtrain != 0:
-    if args.n_testtrain % args.batch_size == 0:
-        args.wait_time = args.n_testtrain // args.batch_size 
-    else:
-        args.batch_size = 1
-        args.wait_time = args.n_testtrain
-
 dss = {'trains': [], 'vals': []}
 
 for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
