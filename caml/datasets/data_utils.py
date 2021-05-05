@@ -57,6 +57,9 @@ def compute_fracs(df, n_testtrain, n_testtest, train_frac, val_frac):
         elif n_testtest == 0 and n_testtrain != 0:
             n_testtest = df.shape[0] - n_testtrain
 
+        else:
+            n_testtest = min(n_testtest, df.shape[0] - n_testtrain)
+        
         tr_frac = n_testtrain / (n_testtrain + n_testtest)
         va_frac = 1.0 - tr_frac
         n_pts = n_testtrain + n_testtest
