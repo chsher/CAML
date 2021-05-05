@@ -143,7 +143,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         train_loader = train_loaders[t]
 
         optimizer = optim.Adam(local_model.parameters(), lr=alpha, weight_decay=wd)
-        loss_tracker, auc_tracker, y_prob_tracker, y_tracker = [], [], [], []
+        loss_tracker, auc_tracker, y_prob_tracker, y_tracker = [], [], np.array([]), np.array([])
         local_model.train()
 
         if randomize:
@@ -168,8 +168,8 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 total_loss += loss.detach().cpu().numpy()
 
                 y_prob = torch.sigmoid(y_pred.detach().cpu())
-                y_prob_tracker.append(y_prob.squeeze(-1).numpy())
-                y_tracker.append(y.squeeze(-1).numpy())
+                y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
+                y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
                 
             # first forward pass, update local params
             if h == 0:
@@ -180,7 +180,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 total_loss = 0.0
                 
             # second forward pass, store local grads
-            if h == 1:
+            elif h == 1:
                 grads[0] = grads[0] + local_model.lnr1.weight.grad.data
                 grads[1] = grads[1] + local_model.lnr1.bias.grad.data
                 grads[2] = grads[2] + local_model.lnr2.weight.grad.data
@@ -200,8 +200,6 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                             auc_tracker.append(0.0)
 
                     print(PRINT_STMT.format(epoch_num, t, loss_tracker[0], auc_tracker[0], loss_tracker[1], auc_tracker[1], *splits))
-                
-                break
 
     return grads, local_models
 
