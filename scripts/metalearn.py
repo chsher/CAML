@@ -46,21 +46,20 @@ dss = {'trains': [], 'vals': []}
 for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
     for cancer in tqdm(cas):
-        
-        if (lab == 'trains' and args.training) or lab == 'vals':
 
-            df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
+        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
+
+        if lab == 'trains' and args.training:
+            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=1.0, val_frac=0.0, n_pts=df_temp.shape[0], random_seed=args.random_seed, 
+                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                    unit=args.unit, cancers=[cancer], label=args.label)
+        elif lab == 'vals':
             tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
-            if lab == 'trains' and args.training:
-                datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                        unit=args.unit, cancers=[cancer], label=args.label)
-            elif lab == 'vals':
-                datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                        unit=args.unit, cancers=[cancer], label=args.label,
-                                                                        adjust_brightness=args.adjust_brightness, resize=args.resize)
+            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                    unit=args.unit, cancers=[cancer], label=args.label,
+                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
         else:
             datasets = [[], []]
             
@@ -74,18 +73,18 @@ if args.training:
 
 metatrain_loaders = []
 for va in dss['vals']:
-    va_loader = DataLoader(va[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+    va_loader = DataLoader(va[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
     metatrain_loaders.append(va_loader)
 
 metatest_loaders = []
 for va in dss['vals']:
-    va_loader = DataLoader(va[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)
+    va_loader = DataLoader(va[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
     metatest_loaders.append(va_loader)
 
 val_loaders = [metatrain_loaders, metatest_loaders]
 train_size = np.sum([len(tr[0]) for tr in dss['trains']])
 metatrain_size = np.sum([len(va[0]) for va in dss['vals']])
-metatest_size = np.sum([len(va[1]) for va in dss['vals']])
+metatest_size = np.sum([len(va[1]) if args.max_batches[-1] == -1 else min(len(va[1]), args.max_batches[-1]) for va in dss['vals']])
 
 #################### PRINT PARAMS ####################
 repo = Repo(search_parent_directories=True)
@@ -115,7 +114,7 @@ if args.steps is None:
     metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, 
                         net, global_model, local_models, global_theta, criterions, device, args.n_steps, args.n_testtrain, args.n_testtest, 
                         args.patience, args.outfile, args.statsfile, n_choose=args.n_choose, wait_time=args.wait_time, training=args.training, 
-                        pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles, randomize=args.randomize)
+                        pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles, randomize=args.randomize, max_batches=args.max_batches[-1])
 
 #################### N_STEPS ####################
 else:
@@ -128,4 +127,4 @@ else:
         metalearner.train_model(args.n_epochs, train_loaders, val_loaders, args.learning_rate, args.eta, args.weight_decay, args.factor, 
                                 net, global_model, local_models, global_theta, criterions, device, s, args.n_testtrain, args.n_testtest,
                                 args.patience, args.outfile, args.statsfile, n_choose=args.n_choose, wait_time=args.wait_time, training=args.training,
-                                pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles, randomize=args.randomize)
+                                pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles, randomize=args.randomize, max_batches=args.max_batches[-1])

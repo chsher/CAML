@@ -63,7 +63,7 @@ def init_models(hidden_size, output_size, n_local, device, dropout=0.0, resnet_f
 
 def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, net, global_model, local_models, global_theta, 
                 criterions, device, n_steps, n_testtrain, n_testtest, patience, outfile, statsfile, n_choose=5, wait_time=1, 
-                training=True, pool=None, batch_size=None, num_tiles=None, randomize=False, verbose=True, random_seed=31321):
+                training=True, pool=None, batch_size=None, num_tiles=None, randomize=False, max_batches=20, verbose=True, random_seed=31321):
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
     n_local = len(local_models)
@@ -87,7 +87,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         #loss, auc, ys, yps = stats
         stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=n_steps, n_testtrain=n_testtrain, 
                                n_testtest=n_testtest, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, randomize=randomize, 
-                               verbose=verbose)
+                               max_batches=max_batches, verbose=verbose)
         
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f) 
@@ -134,7 +134,6 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     
     if randomize:
         wait_time_orig = wait_time
-        batch_size_orig = batch_size
             
     grads = [torch.zeros(p.shape).to(device) for p in local_models[0].parameters()]
 
@@ -149,30 +148,27 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         if randomize:
             wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
 
-        for h in range(2):
-            for i, (x, y) in enumerate(train_loader):
-                if i >= wait_time:
-                    break
-                    
-                if pool is not None:
-                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-                    y_pred = local_model(net(x))
-                    y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
-                    y_pred = pool(y_pred, dim=1)
-                else:
-                    y_pred = local_model(net(x.to(device)))
-
-                loss = criterion(y_pred, y.to(device)) / wait_time
-                loss.backward()
-
-                total_loss += loss.detach().cpu().numpy()
-
-                y_prob = torch.sigmoid(y_pred.detach().cpu())
-                y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
-                y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+        for i, (x, y) in enumerate(train_loader):
                 
+            if pool is not None:
+                x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                y_pred = local_model(net(x))
+                y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
+                y_pred = pool(y_pred, dim=1)
+            else:
+                y_pred = local_model(net(x.to(device)))
+
+            loss = criterion(y_pred, y.to(device)) / wait_time
+            loss.backward()
+
+            total_loss += loss.detach().cpu().numpy()
+
+            y_prob = torch.sigmoid(y_pred.detach().cpu())
+            y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
+            y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+            
             # first forward pass, update local params
-            if h == 0:
+            if i == wait_time - 1:
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -180,7 +176,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 total_loss = 0.0
                 
             # second forward pass, store local grads
-            elif h == 1:
+            elif i == (2 * wait_time) - 1:
                 grads[0] = grads[0] + local_model.lnr1.weight.grad.data
                 grads[1] = grads[1] + local_model.lnr1.bias.grad.data
                 grads[2] = grads[2] + local_model.lnr2.weight.grad.data
@@ -190,7 +186,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 
                 loss_tracker.append(total_loss)
                 total_loss = 0.0
-    
+
                 if verbose:
                     bs = batch_size * wait_time
                     for j in range(2):
@@ -200,6 +196,8 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                             auc_tracker.append(0.0)
 
                     print(PRINT_STMT.format(epoch_num, t, loss_tracker[0], auc_tracker[0], loss_tracker[1], auc_tracker[1], *splits))
+
+                break
 
     return grads, local_models
 
@@ -214,28 +212,19 @@ def run_global_train(global_theta, global_model, grads, eta):
 
 
 def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, n_testtest=50, wait_time=1, 
-                   pool=None, batch_size=None, num_tiles=None, randomize=False, verbose=True, splits=['TaskVal', 'CumVal']):
+                   pool=None, batch_size=None, num_tiles=None, randomize=False, max_batches=20, verbose=True, splits=['TaskVal', 'CumVal']):
 
     net.eval()
 
-    n_testtrain_orig = n_testtrain
+    if randomize:
+        wait_time_orig = wait_time
         
     losses_tracker, loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
 
     for t, (metatrain_loader, metatest_loader) in enumerate(tzip(*val_loaders)):
     
         if randomize:
-            n_testtrain = np.random.choice(np.arange(1, n_testtrain_orig + 1))   
-            
-            if n_testtrain % batch_size == 0:
-                train_batch_size = batch_size
-            else:
-                train_batch_size = 1
-                
-            wait_time = max(min(len(metatrain_loader), n_testtrain // train_batch_size), 1) 
-            
-        else:
-            train_batch_size = batch_size
+            wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
 
         optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
@@ -246,13 +235,11 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         # meta-test train
         for ns in range(n_steps):
             for i, (x, y) in enumerate(metatrain_loader):    
-                x = x[:train_batch_size, ]
-                y = y[:train_batch_size, ]
 
                 if pool is not None:
                     x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
                     y_pred = global_model(net(x))
-                    y_pred = y_pred.contiguous().view(train_batch_size, num_tiles, -1)
+                    y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
                     y_pred = pool(y_pred, dim=1)
                 else:
                     y_pred = global_model(net(x.to(device)))
@@ -273,6 +260,10 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         
         # meta-test test
         for i, (x, y) in enumerate(metatest_loader):
+            if i >= max_batches and max_batches != -1:
+                break
+
+            # DataLoader drop_last=False
             val_batch_size = x.shape[0]
             bs += val_batch_size
             
@@ -306,7 +297,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             except:
                 auc_all = 0.0
 
-            print(PRINT_STMT.format(epoch_num, t, np.mean(loss_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
+            print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
 
         global_model.update_params(global_theta)
 
