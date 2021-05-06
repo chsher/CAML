@@ -109,7 +109,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
 
                 alpha = max(factor * alpha, 1e-12)
                 eta = max(factor * eta, 1e-12)
-                print('-------- LR DECAY -------- | Alpha: {0:0.8f}, Eta: {1:0.8f}'.format(alpha, eta))
+                print('-------- LR DECAY -------- | Alpha: {0:0.4e}, Eta: {1:0.4e}'.format(alpha, eta))
 
                 tally = 0
 
