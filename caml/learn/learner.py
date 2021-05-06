@@ -147,12 +147,12 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
                 try:
                     auc = roc_auc_score(y_tracker, y_prob_tracker)
                 except:
-                    auc = 0.0
+                    auc = np.nan
 
                 try:
                     auc_val = roc_auc_score(y_tracker_val, y_prob_tracker_val)
                 except:
-                    auc_val = 0.0
+                    auc_val = np.nan
 
                 print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu(), auc, total_loss_val, auc_val, *splits))
                 
@@ -193,13 +193,13 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
             try:
                 auc_all = roc_auc_score(y_tracker, y_prob_tracker)
             except:
-                auc_all = 0.0
+                auc_all = np.nan
 
             if verbose:
                 try:
                     auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)
                 except:
-                    auc_val = 0.0
+                    auc_val = np.nan
 
                 print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
             

@@ -7,7 +7,7 @@ TRAIN_CANCERS = ['BLCA', 'BRCA', 'COAD', 'HNSC', 'LUAD', 'LUSC', 'READ', 'STAD']
 VAL_CANCERS = ['ACC', 'CHOL', 'ESCA', 'LIHC', 'KICH', 'KIRC', 'OV', 'UCS', 'UCEC']
 
 PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'MAX_BATCHES', 'PIN_MEMORY', 'N_WORKERS', 'RANDOM_SEED',
-          'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 
+          'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 'DEVICE',
           'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'LABEL', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
           'VAL_CANCERS', 'TEST_VAL', 'HID_DIM', 'FREEZE', 'PRETRAINED', 'RES_DICT', 'RES_DICT_NEW', 'GRAD_ADAPT', 
           'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'RANDOMIZE', 'BRIGHTNESS', 'RESIZE', 'STEPS']
@@ -41,6 +41,7 @@ def parse_args():
     parser.add_argument('--factor', type=float, default=0.1, help='factor by which to reduce learning rate during scheduling')
     parser.add_argument('--n_epochs', type=int, default=20, help='number of epochs to train the model')
     parser.add_argument('--disable_cuda', default=False, action='store_true', help='whether or not to use GPU')
+    parser.add_argument('--device', type=str, default='0', help='CUDA device to use if use GPU')
 
     # I/O parameters
     parser.add_argument('--output_size', type=int, default=1, help='model output dimension')

@@ -116,7 +116,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
         if loss < best_loss: 
             best_n = n
             best_loss = loss 
-            best_auc = np.mean(stats[1])
+            best_auc = np.nanmean(stats[1])
 
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
 
@@ -193,7 +193,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                         try:
                             auc_tracker.append(roc_auc_score(y_tracker[bs * j : bs * (j + 1)], y_prob_tracker[bs * j : bs * (j + 1)]))
                         except:
-                            auc_tracker.append(0.0)
+                            auc_tracker.append(np.nan)
 
                     print(PRINT_STMT.format(epoch_num, t, loss_tracker[0], auc_tracker[0], loss_tracker[1], auc_tracker[1], *splits))
 
@@ -286,7 +286,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         try:
             auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
         except:
-            auc = 0.0
+            auc = np.nan
 
         auc_tracker = np.concatenate((auc_tracker, [auc]))
         loss_tracker = np.concatenate((loss_tracker, [np.mean(losses_tracker[-bs:])]))
@@ -295,7 +295,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             try:
                 auc_all = roc_auc_score(y_tracker, y_prob_tracker)
             except:
-                auc_all = 0.0
+                auc_all = np.nan
 
             print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
 

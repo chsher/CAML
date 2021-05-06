@@ -27,7 +27,7 @@ import pdb
 args = script_utils.parse_args()
 
 if not args.disable_cuda and torch.cuda.is_available():
-    device = torch.device('cuda')
+    device = torch.device('cuda:' + args.device)
 else:
     device = torch.device('cpu')
     
@@ -87,7 +87,7 @@ print("Running CAML main as of commit:\n{}\ndesc: {}author: {}, date: {}".format
     commit.hexsha, commit.message, commit.author, commit_date.strftime("%d-%b-%Y (%H:%M:%S)")))
 
 values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, args.wait_time, args.max_batches, args.pin_memory, args.n_workers, args.random_seed, 
-          args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, 
+          args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, args.device,
           args.output_size, args.min_tiles, args.num_tiles, args.label, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt, 
           args.eta, args.n_choose, args.n_steps, args.n_testtrain, args.n_testtest, args.randomize, args.adjust_brightness, args.resize, args.steps]
