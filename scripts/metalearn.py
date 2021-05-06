@@ -111,7 +111,7 @@ if args.steps is None:
 
 #################### N_STEPS ####################
 else:
-    for s in tqdm(np.arange(args.steps)):
+    for s in tqdm(np.arange(1, args.steps + 1)):
         print('N_STEPS:', s)
         
         with open(args.statsfile, 'ab') as f:
