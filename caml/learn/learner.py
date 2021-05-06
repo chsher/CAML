@@ -165,7 +165,7 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
     net.eval()
     
     wait_time = min(wait_time, len(val_loader))
-    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else len(val_loader)
+    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else (len(val_loader) // wait_time) * wait_time
     if total_batches == 0:
         total_batches = len(val_loader)
         wait_time = len(val_loader)
