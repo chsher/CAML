@@ -259,7 +259,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         bs = 0
         
         # meta-test test
-        for i, (x, y) in enumerate(metatest_loader):
+        for i, (x, y) in tqdm(enumerate(metatest_loader)):
             if i >= max_batches and max_batches != -1:
                 break
 
