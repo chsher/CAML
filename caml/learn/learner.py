@@ -32,7 +32,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
 
     for n in tqdm(range(n_epochs)):
         if training:
-            run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, verbose, wait_time, max_batches[0])
+            run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
         
         #loss, auc, ys, yps = stats
         if grad_adapt:
@@ -42,7 +42,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
                                                n_testtrain, verbose)
         else:
-            stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, verbose, wait_time, max_batches[1])
+            stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
         
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
@@ -99,20 +99,21 @@ def cycle(iterable):
             iterator = iter(iterable)
             
 
-def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, verbose=True, wait_time=1, max_batches=20, splits=['Train', 'Val']):
-
-    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else (len(train_loader) // wait_time) * wait_time
-    if total_batches == 0:
-        total_batches = len(train_loader)
-        wait_time = len(train_loader)
+def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, optimizer, device, wait_time=1, max_batches=20, verbose=True, splits=['Train', 'Val']):
     
     total_loss, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([])
     total_loss_val, y_prob_tracker_val, y_tracker_val = 0.0, np.array([]), np.array([])
     
     for t, ((x, y), (x_val, y_val)) in enumerate(zip(tqdm(train_loader), cycle(val_loader))):
-        if t >= total_batches:
+        if t >= max_batches and max_batches != -1:
             break
+
+        elif t == (max_batches // wait_time) * wait_time and max_batches != -1:
+            wait_time = max_batches % wait_time
             
+        elif t == (len(train_loader) // wait_time) * wait_time and max_batches == -1:
+            wait_time = len(train_loader) % wait_time
+
         net.train()
         optimizer.zero_grad()
 
@@ -154,42 +155,33 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
                 except:
                     auc_val = np.nan
 
-                print(PRINT_STMT.format(epoch_num, t, total_loss.detach().cpu(), auc, total_loss_val, auc_val, *splits))
+                print(PRINT_STMT.format(epoch_num, t, total_loss, auc, total_loss_val, auc_val, *splits))
                 
             total_loss = 0.0
             total_loss_val = 0.0
 
 
-def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=True, wait_time=1, max_batches=20, splits=['Val', 'CumVal']):
+def run_validation_epoch(epoch_num, val_loader, net, criterion, device, wait_time=1, max_batches=20, verbose=True, splits=['Val', 'CumVal']):
 
     net.eval()
     
-    wait_time = min(wait_time, len(val_loader))
-    total_batches = (max_batches // wait_time) * wait_time if max_batches != -1 else (len(val_loader) // wait_time) * wait_time
-    if total_batches == 0:
-        total_batches = len(val_loader)
-        wait_time = len(val_loader)
-    
-    batch_loss_val, loss_tracker, y_prob_tracker, y_tracker = 0.0, np.array([]), np.array([]), np.array([])
+    loss_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([])
 
     for t, (x_val, y_val) in enumerate(tqdm(val_loader)):
-        if t >= total_batches:
+        if t >= max_batches and max_batches != -1:
             break
             
         with torch.no_grad():
             y_pred_val = net(x_val.to(device))
 
         loss_val = criterion(y_pred_val, y_val.to(device)) 
-
-        batch_loss_val += torch.mean(loss_val.cpu()) / wait_time
-
         loss_tracker = np.concatenate((loss_tracker, loss_val.cpu().squeeze(-1).numpy()))
 
         y_prob_val = torch.sigmoid(y_pred_val.cpu())
         y_prob_tracker = np.concatenate((y_prob_tracker, y_prob_val.squeeze(-1).numpy()))
         y_tracker = np.concatenate((y_tracker, y_val.squeeze(-1).numpy()))
 
-        if ((t + 1) % wait_time == 0) or (t == total_batches - 1):
+        if ((t + 1) % wait_time == 0) or (t == max_batches - 1) or (t == len(val_loader) - 1):
             try:
                 auc_all = roc_auc_score(y_tracker, y_prob_tracker)
             except:
@@ -197,12 +189,10 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, verbose=
 
             if verbose:
                 try:
-                    auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val)
+                    auc_val = roc_auc_score(y_val.squeeze(-1).numpy(), y_prob_val.squeeze(-1).numpy())
                 except:
                     auc_val = np.nan
 
-                print(PRINT_STMT.format(epoch_num, t, batch_loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
-            
-            batch_loss_val = 0.0
+                print(PRINT_STMT.format(epoch_num, t, loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
 
     return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker
