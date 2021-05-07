@@ -47,8 +47,8 @@ if args.test_val:
 else:
     train, val = datasets
 
-train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
-val_loader = DataLoader(val, batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
+train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+val_loader = DataLoader(val, batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
 args.max_batches = [args.max_batches[0], args.max_batches[0]] if len(args.max_batches) == 1 else args.max_batches
 
 #################### PRINT PARAMS ####################
