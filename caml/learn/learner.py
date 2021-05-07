@@ -193,6 +193,6 @@ def run_validation_epoch(epoch_num, val_loader, net, criterion, device, wait_tim
                 except:
                     auc_val = np.nan
 
-                print(PRINT_STMT.format(epoch_num, t, loss_val, auc_val, np.mean(loss_tracker), auc_all, *splits))
+                print(PRINT_STMT.format(epoch_num, t, np.mean(loss_val.cpu().squeeze(-1).numpy()), auc_val, np.mean(loss_tracker), auc_all, *splits))
 
     return np.mean(loss_tracker), auc_all, y_tracker, y_prob_tracker
