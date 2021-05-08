@@ -30,6 +30,8 @@ if not args.disable_cuda and torch.cuda.is_available():
     device = torch.device('cuda:' + args.device)
 else:
     device = torch.device('cpu')
+
+np.random.seed(args.random_seed)
     
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
@@ -51,7 +53,8 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
             datasets = []
             if args.training:
-                for randseed in range(100):
+                rands = np.random.randint(0, 1e09, size=100)
+                for randseed in rands:
                     datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
                                                                     renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
                                                                     unit=args.unit, cancers=[cancer], label=args.label,
