@@ -49,10 +49,20 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
         elif lab == 'vals':
             tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
-            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+            datasets = []
+            if args.training:
+                for randseed in range(100):
+                    datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
                                                                     renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
                                                                     unit=args.unit, cancers=[cancer], label=args.label,
                                                                     adjust_brightness=args.adjust_brightness, resize=args.resize)
+                    datasets.append(datasets_v)
+            else:
+                datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                    unit=args.unit, cancers=[cancer], label=args.label,
+                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
+                datasets.append(datasets_v)
         else:
             datasets = [[], []]
             
@@ -66,18 +76,18 @@ if args.training:
 
 metatrain_loaders = []
 for va in dss['vals']:
-    va_loader = DataLoader(va[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
+    va_loader = [DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True) for v in va]
     metatrain_loaders.append(va_loader)
 
 metatest_loaders = []
 for va in dss['vals']:
-    va_loader = DataLoader(va[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)
+    va_loader = [DataLoader(v[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False) for v in va]
     metatest_loaders.append(va_loader)
 
 val_loaders = [metatrain_loaders, metatest_loaders]
 train_size = np.sum([len(tr[0]) for tr in dss['trains']])
-metatrain_size = np.sum([len(va[0]) for va in dss['vals']])
-metatest_size = np.sum([len(va[1]) if args.max_batches[-1] == -1 else min(len(va[1]), args.max_batches[-1]) for va in dss['vals']])
+metatrain_size = np.sum([len(va[0][0]) for va in dss['vals']])
+metatest_size = np.sum([len(va[0][1]) if args.max_batches[-1] == -1 else min(len(va[0][1]), args.max_batches[-1]) for va in dss['vals']])
 
 #################### PRINT PARAMS ####################
 repo = Repo(search_parent_directories=True)

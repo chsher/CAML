@@ -221,8 +221,11 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
         
     losses_tracker, loss_tracker, auc_tracker, y_prob_tracker, y_tracker = np.array([]), np.array([]), np.array([]), np.array([]), np.array([])
 
-    for t, (metatrain_loader, metatest_loader) in enumerate(tzip(*val_loaders)):
+    for t, (metatrain_loaders, metatest_loaders) in enumerate(tzip(*val_loaders)):
     
+        metatrain_loader = np.random.choice(metatrain_loaders)
+        metatest_loader = np.random.choice(metatest_loaders)
+
         if randomize:
             wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
 
