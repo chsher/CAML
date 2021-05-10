@@ -75,6 +75,7 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
     for n in tqdm(range(n_epochs)):
         if training:
             for ns in tqdm(range(n_steps)):
+                verbose = True if ns == n_steps - 1 else False
                 ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
                 grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, wait_time, 

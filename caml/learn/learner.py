@@ -116,10 +116,10 @@ def run_training_epoch(epoch_num, train_loader, val_loader, net, criterion, opti
         if t >= max_batches and max_batches != -1:
             break
 
-        elif t == (max_batches // wait_time) * wait_time and max_batches != -1:
+        elif t == (max_batches // wait_time) * wait_time and max_batches % wait_time > 0 and max_batches != -1:
             wait_time = max_batches % wait_time
             
-        elif t == (len(train_loader) // wait_time) * wait_time and max_batches == -1:
+        elif t == (len(train_loader) // wait_time) * wait_time and len(train_loader) % wait_time > 0 and max_batches == -1:
             wait_time = len(train_loader) % wait_time
 
         net.train()
