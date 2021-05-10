@@ -53,7 +53,7 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
             datasets = []
             if args.training:
-                rands = np.random.randint(0, 1e09, size=1)
+                rands = np.random.randint(0, 1e09, size=50)
                 for randseed in rands:
                     datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
                                                                     renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
