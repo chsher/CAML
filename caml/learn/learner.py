@@ -30,9 +30,12 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         if training:
             if grad_adapt:
                 for ns in tqdm(range(n_steps)):
-                    run_training_epoch(n, train_loader, val_loaders[0][0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
+                    verbose = True if ns == n_steps - 1 else False
+                    run_training_epoch(n, train_loader, val_loaders[0][0][0], net, criterions[0], optimizer, device, 
+                                       wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
             else:    
-                run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
+                run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, 
+                                   wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
         
         #loss, auc, ys, yps = stats
         if grad_adapt:
@@ -43,14 +46,16 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
 
-            stats = run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, max_batches=max_batches[-1], verbose=verbose)
+            stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, 
+                                               n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, 
+                                               max_batches=max_batches[-1], verbose=verbose)
         else:
             stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
-        
+            
         with open(statsfile, 'ab') as f:
             pickle.dump(stats, f)   
 
-        loss = stats[0]
+        loss = np.mean(stats[0]) if grad_adapt else stats[0]
         
         if training:
             if loss < best_loss: 
@@ -83,7 +88,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         if loss < best_loss: 
             best_n = n
             best_loss = loss 
-            best_auc = stats[1]
+            best_auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
             
     print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
     

@@ -133,8 +133,11 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
             ds = tcga.TCGAdataset(d, transform=transform_val, min_tiles=min_tiles, num_tiles=num_tiles, cancers=cancers, label=label, unit=unit, mag=mag, 
                                   H=H, W=W, apply_filter=False, random_seed=random_seed, return_pt=return_pt, adjust_brightness=adjust_brightness, resize=resize) 
         dss.append(ds)
-        
-    return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
+    
+    if transform_val is not None:
+        return dss, transform_val.transforms[0].mean, transform_val.transforms[0].std
+    else:
+        return dss, None, None
 
 #################### DATA FILTERING ####################
 def filter_df(df, min_tiles=None, cancers=None, idxs=None, n_pts=None, random_seed=None):

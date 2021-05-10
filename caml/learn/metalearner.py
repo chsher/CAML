@@ -295,12 +295,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             loss_tracker = np.concatenate((loss_tracker, [np.mean(losses_tracker[-bs:])]))
 
             if verbose:
-                try:
-                    auc_all = roc_auc_score(y_tracker, y_prob_tracker)
-                except:
-                    auc_all = np.nan
-
-                print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
+                print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), np.nanmean(auc_tracker), *splits))
 
             global_model.update_params(global_theta)
 
