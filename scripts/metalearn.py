@@ -54,6 +54,7 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
             datasets = []
             if args.training:
                 rands = np.random.randint(0, 1e09, size=50)
+                
                 for randseed in rands:
                     datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
                                                                     renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
@@ -79,12 +80,12 @@ if args.training:
 
 metatrain_loaders = []
 for va in dss['vals']:
-    va_loader = [DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True) for v in va]
+    va_loader = [DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True) for v in va]
     metatrain_loaders.append(va_loader)
 
 metatest_loaders = []
 for va in dss['vals']:
-    va_loader = [DataLoader(v[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False) for v in va]
+    va_loader = [DataLoader(v[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False) for v in va]
     metatest_loaders.append(va_loader)
 
 val_loaders = [metatrain_loaders, metatest_loaders]
