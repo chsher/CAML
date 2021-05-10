@@ -148,8 +148,8 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
 
         if randomize:
             wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
-
-        for i, (x, y) in enumerate(train_loader):
+        
+        for i, (x, y) in enumerate(tqdm(train_loader)):
                 
             if pool is not None:
                 x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
@@ -167,7 +167,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
             y_prob = torch.sigmoid(y_pred.detach().cpu())
             y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
             y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
-            
+
             # first forward pass, update local params
             if i == wait_time - 1:
                 optimizer.step()
@@ -175,7 +175,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
 
                 loss_tracker.append(total_loss)
                 total_loss = 0.0
-                
+
             # second forward pass, store local grads
             elif i == (2 * wait_time) - 1:
                 grads[0] = grads[0] + local_model.lnr1.weight.grad.data
@@ -184,7 +184,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                 grads[3] = grads[3] + local_model.lnr2.bias.grad.data
 
                 local_model.update_params(global_theta)
-                
+
                 loss_tracker.append(total_loss)
                 total_loss = 0.0
 
@@ -197,7 +197,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
                             auc_tracker.append(np.nan)
 
                     print(PRINT_STMT.format(epoch_num, t, loss_tracker[0], auc_tracker[0], loss_tracker[1], auc_tracker[1], *splits))
-
+                    
                 break
 
     return grads, local_models
@@ -236,8 +236,8 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             global_model.train()
             
             # meta-test train
-            for ns in range(n_steps):
-                for i, (x, y) in enumerate(metatrain_loader):    
+            for ns in tqdm(range(n_steps)):
+                for i, (x, y) in enumerate(tqdm(metatrain_loader)): 
 
                     if pool is not None:
                         x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
@@ -246,7 +246,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
                         y_pred = pool(y_pred, dim=1)
                     else:
                         y_pred = global_model(net(x.to(device)))
-                    
+
                     loss = criterion(y_pred, y.to(device)) / wait_time
                     loss.backward()
 

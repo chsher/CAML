@@ -10,7 +10,7 @@ PARAMS = ['RENORMALIZE', 'TRAIN_FRAC', 'VAL_FRAC', 'BATCH_SIZE', 'WAIT_TIME', 'M
           'TRAINING', 'LEARNING_RATE', 'WEIGHT_DECAY', 'DROPOUT', 'PATIENCE', 'FACTOR', 'N_EPOCHS', 'DISABLE_CUDA', 'DEVICE',
           'OUT_DIM', 'MIN_TILES', 'NUM_TILES', 'LABEL', 'UNIT', 'POOL', 'CANCERS', 'METADATA', 'STATE_DICT', 'VAL_STATS', 
           'VAL_CANCERS', 'TEST_VAL', 'HID_DIM', 'FREEZE', 'PRETRAINED', 'RES_DICT', 'RES_DICT_NEW', 'GRAD_ADAPT', 
-          'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'TEST_BATCH_SIZE', 'RANDOMIZE', 'BRIGHTNESS', 'RESIZE', 'STEPS']
+          'ETA', 'N_CHOOSE', 'N_STEPS', 'N_TESTTRAIN', 'N_TESTTEST', 'N_REPLICATES', 'TEST_BATCH_SIZE', 'RANDOMIZE', 'BRIGHTNESS', 'RESIZE', 'STEPS']
 
 POOL_KEY = {
     'max': torch.max,
@@ -71,6 +71,7 @@ def parse_args():
     parser.add_argument('--n_steps', type=int, default=1, help='number of gradient steps to take on meta-test train set')
     parser.add_argument('--n_testtrain', type=int, default=0, help='number of examples on which to train during meta-test time or train time')
     parser.add_argument('--n_testtest', type=int, default=0, help='number of examples on which to test during meta-test time or test time')
+    parser.add_argument('--n_replicates', type=int, default=1, help='number of replicates for metaval and metatest')    
     parser.add_argument('--test_batch_size', type=int, default=4, help='number of examples per meta-test test batch')
     parser.add_argument('--randomize', default=False, action='store_true', help='whether to randomize the train size during meta-train/-test')
     parser.add_argument('--adjust_brightness', type=float, default=None, help='desired brightness (<1 darker, >1 brighter) on meta-test set')

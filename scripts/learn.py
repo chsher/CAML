@@ -59,7 +59,7 @@ if args.test_val:
 
         if args.training:
             datasets = []
-            rands = np.random.randint(0, 1e09, size=50)
+            rands = np.random.randint(0, 1e09, size=args.n_replicates)
 
             for randseed in rands:
                 datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
@@ -103,7 +103,7 @@ values = [args.renormalize, args.train_frac, args.val_frac, args.batch_size, arg
           args.training, args.learning_rate, args.weight_decay, args.dropout, args.patience, args.factor, args.n_epochs, args.disable_cuda, args.device,
           args.output_size, args.min_tiles, args.num_tiles, args.label, args.unit, args.pool.__name__, ', '.join(args.cancers), args.infile, args.outfile, args.statsfile, 
           ', '.join(args.val_cancers), args.test_val, args.hidden_size, args.freeze, args.pretrained, args.resfile, args.resfile_new, args.grad_adapt]
-for k,v in zip(script_utils.PARAMS[:-10] + ['N_TRAIN', 'N_TEST', 'TEST_BATCH_SIZE', 'TRAIN_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [args.n_testtrain, args.n_testtest, args.test_batch_size, len(train), mu, sig]):
+for k,v in zip(script_utils.PARAMS[:-11] + ['N_TRAIN', 'N_TEST', 'N_REPLICATES', 'TEST_BATCH_SIZE', 'TRAIN_SIZE', 'TRAIN_MU', 'TRAIN_SIG'], values + [args.n_testtrain, args.n_testtest, args.n_replicates, args.test_batch_size, len(train), mu, sig]):
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
