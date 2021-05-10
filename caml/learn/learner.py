@@ -22,25 +22,28 @@ import pdb
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile, resfile_new=None, 
-                n_steps=1, n_testtrain=50, wait_time=1, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, training=True, verbose=True):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience,outfile, statsfile, resfile_new=None, n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, training=True, verbose=True):
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
-    
-    alpha = optimizer.param_groups[0]['lr']
-    wd = optimizer.param_groups[0]['weight_decay']
 
     for n in tqdm(range(n_epochs)):
         if training:
-            run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
+            if grad_adapt:
+                for ns in tqdm(range(n_steps)):
+                    run_training_epoch(n, train_loader, val_loaders[0][0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
+            else:    
+                run_training_epoch(n, train_loader, val_loaders[0], net, criterions[0], optimizer, device, wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
         
         #loss, auc, ys, yps = stats
         if grad_adapt:
             global_theta = []
+            alpha = optimizer.param_groups[0]['lr']
+            wd = optimizer.param_groups[0]['weight_decay']
+
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
-            stats = metalearner.run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps, 
-                                               n_testtrain, verbose)
+
+            stats = run_validation(n, val_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, max_batches=max_batches[-1], verbose=verbose)
         else:
             stats = run_validation_epoch(n, val_loaders[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
         

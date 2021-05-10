@@ -74,16 +74,17 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
 
     for n in tqdm(range(n_epochs)):
         if training:
-            ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
+            for ns in tqdm(range(n_steps)):
+                ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
-            grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, wait_time, 
-                                                  pool=pool, batch_size=batch_size, num_tiles=num_tiles, randomize=randomize, verbose=verbose)
+                grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, wait_time, 
+                                                      pool=pool, batch_size=batch_size, num_tiles=num_tiles, randomize=randomize, verbose=verbose)
+                
+                global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
+                
+                for i in range(n_local):
+                    local_models[i].update_params(global_theta)
             
-            global_theta, global_model = run_global_train(global_theta, global_model, grads, eta)
-            
-            for i in range(n_local):
-                local_models[i].update_params(global_theta)
-        
         #loss, auc, ys, yps = stats
         stats = run_validation(n, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=n_steps, n_testtrain=n_testtrain, 
                                n_testtest=n_testtest, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, randomize=randomize, 
@@ -223,86 +224,84 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
     for t, (metatrain_loaders, metatest_loaders) in enumerate(tzip(*val_loaders)):
     
-        idx = np.random.choice(np.arange(len(metatrain_loaders)))
-        metatrain_loader = metatrain_loaders[idx]
-        metatest_loader = metatest_loaders[idx]
-
-        if randomize:
-            wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
-
-        optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
-
-        criterion = criterions[0]
-
-        global_model.train()
+        for metatrain_loader, metatest_loader in tzip(metatrain_loaders, metatest_loaders):
         
-        # meta-test train
-        for ns in range(n_steps):
-            for i, (x, y) in enumerate(metatrain_loader):    
+            if randomize:
+                wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
 
-                if pool is not None:
-                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-                    y_pred = global_model(net(x))
-                    y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
-                    y_pred = pool(y_pred, dim=1)
-                else:
-                    y_pred = global_model(net(x.to(device)))
-                
-                loss = criterion(y_pred, y.to(device)) / wait_time
-                loss.backward()
+            optimizer = optim.Adam(global_model.parameters(), lr=alpha, weight_decay=wd)
 
-                if i == wait_time - 1:
-                    optimizer.step()
-                    optimizer.zero_grad()
-                    break
-        
-        criterion = criterions[1]
-        
-        global_model.eval()
+            criterion = criterions[0]
 
-        bs = 0
-        
-        # meta-test test
-        for i, (x, y) in enumerate(tqdm(metatest_loader)):
-            if i >= max_batches and max_batches != -1:
-                break
-
-            # DataLoader drop_last=False
-            val_batch_size = x.shape[0]
-            bs += val_batch_size
+            global_model.train()
             
-            with torch.no_grad():
-                if pool is not None:
-                    x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
-                    y_pred = global_model(net(x))
-                    y_pred = y_pred.contiguous().view(val_batch_size, num_tiles, -1)
-                    y_pred = pool(y_pred, dim=1)
-                else:
-                    y_pred = global_model(net(x.to(device)))
+            # meta-test train
+            for ns in range(n_steps):
+                for i, (x, y) in enumerate(metatrain_loader):    
 
-            loss = criterion(y_pred, y.to(device))
-            losses_tracker = np.concatenate((losses_tracker, loss.cpu().squeeze(-1).numpy()))
+                    if pool is not None:
+                        x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                        y_pred = global_model(net(x))
+                        y_pred = y_pred.contiguous().view(batch_size, num_tiles, -1)
+                        y_pred = pool(y_pred, dim=1)
+                    else:
+                        y_pred = global_model(net(x.to(device)))
+                    
+                    loss = criterion(y_pred, y.to(device)) / wait_time
+                    loss.backward()
 
-            y_prob = torch.sigmoid(y_pred.cpu())    
-            y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
-            y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+                    if i == wait_time - 1:
+                        optimizer.step()
+                        optimizer.zero_grad()
+                        break
+            
+            criterion = criterions[1]
+            
+            global_model.eval()
 
-        try:
-            auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
-        except:
-            auc = np.nan
+            bs = 0
+            
+            # meta-test test
+            for i, (x, y) in enumerate(tqdm(metatest_loader)):
+                if i >= max_batches and max_batches != -1:
+                    break
 
-        auc_tracker = np.concatenate((auc_tracker, [auc]))
-        loss_tracker = np.concatenate((loss_tracker, [np.mean(losses_tracker[-bs:])]))
+                # DataLoader drop_last=False
+                val_batch_size = x.shape[0]
+                bs += val_batch_size
+                
+                with torch.no_grad():
+                    if pool is not None:
+                        x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
+                        y_pred = global_model(net(x))
+                        y_pred = y_pred.contiguous().view(val_batch_size, num_tiles, -1)
+                        y_pred = pool(y_pred, dim=1)
+                    else:
+                        y_pred = global_model(net(x.to(device)))
 
-        if verbose:
+                loss = criterion(y_pred, y.to(device))
+                losses_tracker = np.concatenate((losses_tracker, loss.cpu().squeeze(-1).numpy()))
+
+                y_prob = torch.sigmoid(y_pred.cpu())    
+                y_prob_tracker = np.concatenate((y_prob_tracker, y_prob.squeeze(-1).numpy()))
+                y_tracker = np.concatenate((y_tracker, y.squeeze(-1).numpy()))
+
             try:
-                auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                auc = roc_auc_score(y_tracker[-bs:], y_prob_tracker[-bs:])
             except:
-                auc_all = np.nan
+                auc = np.nan
 
-            print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
+            auc_tracker = np.concatenate((auc_tracker, [auc]))
+            loss_tracker = np.concatenate((loss_tracker, [np.mean(losses_tracker[-bs:])]))
 
-        global_model.update_params(global_theta)
+            if verbose:
+                try:
+                    auc_all = roc_auc_score(y_tracker, y_prob_tracker)
+                except:
+                    auc_all = np.nan
+
+                print(PRINT_STMT.format(epoch_num, t, np.mean(losses_tracker[-bs:]), auc, np.mean(loss_tracker), auc_all, *splits))
+
+            global_model.update_params(global_theta)
 
     return loss_tracker, auc_tracker, y_tracker, y_prob_tracker

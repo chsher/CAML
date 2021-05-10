@@ -35,20 +35,44 @@ df = pd.read_csv(args.infile)
 df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=args.cancers)
 tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
-datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                        renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, 
-                                                        cancers=args.cancers, label=args.label)
+datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, cancers=args.cancers, label=args.label)
 
-if args.test_val:
-    train = datasets[0]
-    transform_val = transforms.Compose([transforms.Normalize(mean=mu, std=sig)])
-    val = tcga.TCGAdataset(df, transform=transform_val, random_seed=args.random_seed, min_tiles=args.min_tiles, num_tiles=args.num_tiles, unit=args.unit, 
-                           cancers=args.val_cancers, label=args.label)
-else:
-    train, val = datasets
-
+train, val = datasets
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)
+val_loaders = [val_loader]
+
+if args.test_val:
+    metatrain_loaders = []
+    metatest_loaders = []
+
+    for cancer in args.val_cancers:
+        df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
+        tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
+
+        if args.training:
+            datasets = []
+            rands = np.random.randint(0, 1e09, size=50)
+
+            for randseed in rands:
+                datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
+                                                                renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                unit=args.unit, cancers=[cancer], label=args.label,
+                                                                adjust_brightness=args.adjust_brightness, resize=args.resize)
+                datasets.append(datasets_v)
+            
+            metatrain_loaders.append([DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True) for v in datasets])
+            metatest_loaders.append([DataLoader(v[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False) for v in datasets])
+        else:
+            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
+                                                                renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                unit=args.unit, cancers=[cancer], label=args.label,
+                                                                adjust_brightness=args.adjust_brightness, resize=args.resize)
+            metatrain_loaders.append([DataLoader(datasets[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=True)])
+            metatest_loaders.append([DataLoader(datasets[1], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=False, drop_last=False)])
+
+    val_loaders = [metatrain_loaders, metatest_loaders]
+    
 args.max_batches = [args.max_batches[0], args.max_batches[0]] if len(args.max_batches) == 1 else args.max_batches
 
 #################### PRINT PARAMS ####################
@@ -68,11 +92,9 @@ for k,v in zip(script_utils.PARAMS[:-10] + ['N_TRAIN', 'N_TEST', 'TEST_BATCH_SIZ
 #################### INIT MODEL ####################
 ff = 'ff' in args.outfile
 if ff:
-    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool,
-                                    freeze=args.freeze, pretrained=args.pretrained)
+    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.resfile, ffwdfile=args.outfile, dropout=args.dropout, pool=args.pool, freeze=args.freeze, pretrained=args.pretrained)
 else:
-    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.outfile, ffwdfile=None, dropout=args.dropout, pool=args.pool,
-                                    freeze=args.freeze, pretrained=args.pretrained)
+    net = feedforward.ClassifierNet(args.hidden_size, args.output_size, resfile=args.outfile, ffwdfile=None, dropout=args.dropout, pool=args.pool, freeze=args.freeze, pretrained=args.pretrained)
     
 net.to(device)
 print(net)
@@ -82,8 +104,7 @@ optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=arg
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, eps=1e-12, verbose=True)
 
 #################### TRAIN ####################
-learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile,
-                    resfile_new=args.resfile_new, wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=ff, freeze=args.freeze)
+learner.train_model(args.n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler,args.patience, args.outfile, args.statsfile, resfile_new=args.resfile_new, n_steps=args.n_steps, wait_time=args.wait_time, pool=args.pool, batch_size=args.batch_size, num_tiles=args.num_tiles,max_batches=args.max_batches, training=args.training, ff=ff, freeze=args.freeze)
 
 '''#################### VAL - NO ADAPT ####################
 if args.test_val:

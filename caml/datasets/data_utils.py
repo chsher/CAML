@@ -121,8 +121,8 @@ def split_datasets_by_sample(df, train_frac=0.8, val_frac=0.2, n_pts=None, rando
         mu, sig = compute_stats(ds)
         transform_train, transform_val = build_transforms(mu, sig)
     else:
-        transform_train = TRANSFORMER
-        transform_val = transforms.Compose([NORMALIZER])
+        transform_train = None #TRANSFORMER
+        transform_val = None #transforms.Compose([NORMALIZER])
         
     dss = []
     for i, d in enumerate(dfs):
