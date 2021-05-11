@@ -52,20 +52,13 @@ for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
             tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
             datasets = []
-            if args.training:
-                rands = np.random.randint(0, 1e09, size=args.n_replicates)
-                
-                for randseed in rands:
-                    datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
-                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                    unit=args.unit, cancers=[cancer], label=args.label,
-                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
-                    datasets.append(datasets_v)
-            else:
-                datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                    renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                    unit=args.unit, cancers=[cancer], label=args.label,
-                                                                    adjust_brightness=args.adjust_brightness, resize=args.resize)
+            rands = np.random.randint(0, 1e09, size=args.n_replicates)
+            
+            for randseed in rands:
+                datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
+                                                                renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                                unit=args.unit, cancers=[cancer], label=args.label,
+                                                                adjust_brightness=args.adjust_brightness, resize=args.resize)
                 datasets.append(datasets_v)
         else:
             datasets = [[], []]
