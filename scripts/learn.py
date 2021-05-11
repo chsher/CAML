@@ -57,31 +57,20 @@ if args.test_val:
         df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
         tr_frac, va_frac, n_pts = data_utils.compute_fracs(df_temp, args.n_testtrain, args.n_testtest, args.train_frac, args.val_frac)
 
-        if args.training:
-            datasets = []
-            rands = np.random.randint(0, 1e09, size=args.n_replicates)
+        datasets = []
+        rands = np.random.randint(0, 1e09, size=args.n_replicates)
 
-            for randseed in rands:
-                datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
-                                                                renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                unit=args.unit, cancers=[cancer], label=args.label,
-                                                                adjust_brightness=args.adjust_brightness, resize=args.resize)
-                datasets.append(datasets_v)
-            
-            metatrain_loaders.append([DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
-                                                 shuffle=True, drop_last=True) for v in datasets])
-            metatest_loaders.append([DataLoader(v[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
-                                                shuffle=True, drop_last=False) for v in datasets])
-        else:
-            datasets, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=args.random_seed, 
-                                                                renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
-                                                                unit=args.unit, cancers=[cancer], label=args.label,
-                                                                adjust_brightness=args.adjust_brightness, resize=args.resize)
-            
-            metatrain_loaders.append([DataLoader(datasets[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
-                                                 shuffle=True, drop_last=True)])
-            metatest_loaders.append([DataLoader(datasets[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
-                                                shuffle=True, drop_last=False)])
+        for randseed in rands:
+            datasets_v, mu, sig = data_utils.split_datasets_by_sample(df, train_frac=tr_frac, val_frac=va_frac, n_pts=n_pts, random_seed=randseed, 
+                                                            renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
+                                                            unit=args.unit, cancers=[cancer], label=args.label,
+                                                            adjust_brightness=args.adjust_brightness, resize=args.resize)
+            datasets.append(datasets_v)
+        
+        metatrain_loaders.append([DataLoader(v[0], batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
+                                             shuffle=True, drop_last=True) for v in datasets])
+        metatest_loaders.append([DataLoader(v[1], batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, 
+                                            shuffle=True, drop_last=False) for v in datasets])
 
     val_loaders = [metatrain_loaders, metatest_loaders]
 else:
