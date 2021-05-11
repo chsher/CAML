@@ -106,7 +106,12 @@ net.to(device)
 print(net)
 
 criterions = [nn.BCEWithLogitsLoss(reduction='mean'), nn.BCEWithLogitsLoss(reduction='none')]
-optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+
+if ff:
+    optimizer = optim.Adam(net.ff.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+else:
+    optimizer = optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+    
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, patience=args.patience, eps=1e-12, verbose=True)
 
 #################### TRAIN ####################

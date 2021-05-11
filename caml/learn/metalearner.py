@@ -72,10 +72,10 @@ def train_model(n_epochs, train_loaders, val_loaders, alpha, eta, wd, factor, ne
     if random_seed is not None:
         np.random.seed(random_seed)
 
-    for n in tqdm(range(n_epochs)):
+    for n in range(n_epochs):
         if training:
             for ns in tqdm(range(n_steps)):
-                verbose = True if ns == n_steps - 1 else False
+                #verbose = True if ns == n_steps - 1 else False
                 ts = np.random.choice(np.arange(n_local), n_choose, replace=replace)
 
                 grads, local_models = run_local_train(n, ts, train_loaders, alpha, wd, net, local_models, global_theta, criterions[0], device, wait_time, 
@@ -150,7 +150,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
         if randomize:
             wait_time = np.random.choice(np.arange(1, wait_time_orig + 1))
         
-        for i, (x, y) in enumerate(tqdm(train_loader)):
+        for i, (x, y) in enumerate(train_loader):
                 
             if pool is not None:
                 x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
@@ -237,7 +237,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             
             # meta-test train
             for ns in tqdm(range(n_steps)):
-                for i, (x, y) in enumerate(tqdm(metatrain_loader)): 
+                for i, (x, y) in enumerate(metatrain_loader): 
 
                     if pool is not None:
                         x = x.to(device).contiguous().view(-1, x.shape[-3], x.shape[-2], x.shape[-1])
@@ -263,7 +263,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             bs = 0
             
             # meta-test test
-            for i, (x, y) in enumerate(tqdm(metatest_loader)):
+            for i, (x, y) in enumerate(metatest_loader):
                 if i >= max_batches and max_batches != -1:
                     break
 

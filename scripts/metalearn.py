@@ -38,9 +38,9 @@ df = pd.read_csv(args.infile)
 
 dss = {'trains': [], 'vals': []}
 
-for cas, lab in tzip([args.cancers, args.val_cancers], ['trains', 'vals']):
+for cas, lab in zip([args.cancers, args.val_cancers], ['trains', 'vals']):
 
-    for cancer in tqdm(cas):
+    for cancer in cas:
 
         df_temp = data_utils.filter_df(df, min_tiles=args.min_tiles, cancers=[cancer])
 

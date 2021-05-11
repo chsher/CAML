@@ -26,11 +26,11 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
 
-    for n in tqdm(range(n_epochs)):
+    for n in range(n_epochs):
         if training:
             if grad_adapt:
                 for ns in tqdm(range(n_steps)):
-                    verbose = True if ns == n_steps - 1 else False
+                    #verbose = True if ns == n_steps - 1 else False
                     run_training_epoch(n, train_loader, val_loaders[0][0][0], net, criterions[0], optimizer, device, 
                                        wait_time=wait_time, max_batches=max_batches[0], verbose=verbose)
             else:    
@@ -61,8 +61,8 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             if loss < best_loss: 
                 if ff:
                     torch.save(net.ff.state_dict(), outfile)
-                    if not freeze:
-                        torch.save(net.resnet.state_dict(), resfile_new)
+                    #if not freeze:
+                    #    torch.save(net.resnet.state_dict(), resfile_new)
                 else:
                     torch.save(net.resnet.state_dict(), outfile)
                 print('----- SAVED MODEL -----')
@@ -77,9 +77,9 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                 saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
                 if ff:
                     net.ff.load_state_dict(saved_state)
-                    if not freeze:
-                        saved_state_new = torch.load(resfile_new, map_location=lambda storage, loc: storage)
-                        net.resnet.load_state_dict(saved_state_new)
+                    #if not freeze:
+                    #    saved_state_new = torch.load(resfile_new, map_location=lambda storage, loc: storage)
+                    #    net.resnet.load_state_dict(saved_state_new)
                 else:
                     net.resnet.load_state_dict(saved_state)
                 print('----- RELOADED MODEL ----- | Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
