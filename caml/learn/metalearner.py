@@ -130,7 +130,7 @@ def run_local_train(epoch_num, ts, train_loaders, alpha, wd, net, local_models, 
     - Local training currently allows for only Adam optimizer
     '''
 
-    net.eval()
+    net.train()
 
     total_loss = 0.0
     
@@ -216,8 +216,6 @@ def run_global_train(global_theta, global_model, grads, eta):
 def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_theta, criterions, device, n_steps=1, n_testtrain=50, n_testtest=50, wait_time=1, 
                    pool=None, batch_size=None, num_tiles=None, randomize=False, max_batches=20, verbose=True, splits=['TaskVal', 'CumVal']):
 
-    net.eval()
-
     if randomize:
         wait_time_orig = wait_time
         
@@ -234,6 +232,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
 
             criterion = criterions[0]
 
+            net.train()
             global_model.train()
             
             # meta-test train
@@ -258,6 +257,7 @@ def run_validation(epoch_num, val_loaders, alpha, wd, net, global_model, global_
             
             criterion = criterions[1]
             
+            net.eval()
             global_model.eval()
 
             bs = 0
