@@ -58,6 +58,7 @@ def parse_args():
     # task parameters
     parser.add_argument('--val_cancers', nargs='*', type=str, default=VAL_CANCERS, help='list of cancers to include in the val set')
     parser.add_argument('--test_val', default=False, action='store_true', help='whether to test non-meta-learned model on val cancers')
+    parser.add_argument('--skip', type=int, default=0, help='number of metaval or metatest loaders to skip')
     parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
     parser.add_argument('--freeze', default=False, action='store_true', help='whether to freeze the resnet layers')
     parser.add_argument('--pretrained', default=False, action='store_true', help='whether to load the ImageNet-pretrained resnet')

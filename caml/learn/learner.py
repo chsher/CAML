@@ -39,10 +39,10 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         
         #loss, auc, ys, yps = stats
         if grad_adapt:
-            global_theta = []
             alpha = optimizer.param_groups[0]['lr']
             wd = optimizer.param_groups[0]['weight_decay']
 
+            global_theta = []
             for p in net.ff.parameters():
                 global_theta.append(p.detach().clone().to(device))
 
