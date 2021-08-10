@@ -32,9 +32,17 @@ else:
 #################### INIT DATA ####################
 df = pd.read_csv(args.infile)
 
-[train, val], mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, 
+datasets, mu, sig = data_utils.split_datasets_by_sample(df, args.train_frac, args.val_frac, random_seed=args.random_seed, 
                                                             renormalize=args.renormalize, min_tiles=args.min_tiles, num_tiles=args.num_tiles, 
                                                             unit=args.unit, cancers=args.cancers, label=args.label)
+if len(datasets) == 2:
+    train, val = datasets
+    test_loaders = None
+elif len(datasets) == 3:
+    train, val, test = datasets
+    test_loader = DataLoader(test, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
+    test_loaders = [test_loader]
+    
 train_loader = DataLoader(train, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=True)
 val_loader = DataLoader(val, batch_size=args.batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
 
@@ -62,4 +70,4 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile, 
-                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, freeze=False)          
+                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, freeze=False, test_loaders=test_loaders)          

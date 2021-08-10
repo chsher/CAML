@@ -22,7 +22,9 @@ import pdb
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience,outfile, statsfile, resfile_new=None, n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, training=True, verbose=True):
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience,outfile, statsfile, resfile_new=None, 
+    n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, 
+    training=True, test_loaders=None, verbose=True):
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
 
@@ -89,9 +91,31 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
             best_n = n
             best_loss = loss 
             best_auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
-            
-    print('Best Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
     
+    print('Best Val Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
+
+    if test_loaders is not None:
+        if grad_adapt:
+            alpha = optimizer.param_groups[0]['lr']
+            wd = optimizer.param_groups[0]['weight_decay']
+
+            global_theta = []
+            for p in net.ff.parameters():
+                global_theta.append(p.detach().clone().to(device))
+
+            stats = metalearner.run_validation(n, test_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, 
+                                               n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, 
+                                               max_batches=max_batches[-1], verbose=verbose)
+        else:
+            stats = run_validation_epoch(n, test_loaders[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
+            
+        with open(statsfile, 'ab') as f:
+            pickle.dump(stats, f)
+
+        loss = np.mean(stats[0]) if grad_adapt else stats[0]
+        auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
+
+        print('Held-Out Test Performance: Loss {0:7.4f}, AUC {:7.4f}'.format(loss, auc))
 
 def cycle(iterable):
     '''

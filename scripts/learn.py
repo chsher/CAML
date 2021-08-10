@@ -74,7 +74,14 @@ if args.test_val:
 
     val_loaders = [metatrain_loaders, metatest_loaders]
 else:
-    train, val = datasets
+    if len(datasets) == 2:
+        train, val = datasets
+        test_loaders = None
+    elif len(datasets) == 3:
+        train, val, test = datasets
+        test_loader = DataLoader(test, batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
+        test_loaders = [test_loader]
+
     val_loader = DataLoader(val, batch_size=args.test_batch_size, pin_memory=args.pin_memory, num_workers=args.n_workers, shuffle=True, drop_last=False)
     val_loaders = [val_loader]
 
@@ -117,7 +124,8 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler,args.patience, args.outfile, args.statsfile, 
                     resfile_new=args.resfile_new, n_steps=args.n_steps, wait_time=args.wait_time, pool=args.pool, batch_size=args.batch_size, 
-                    num_tiles=args.num_tiles,max_batches=args.max_batches, grad_adapt=args.grad_adapt, training=args.training, ff=ff, freeze=args.freeze)
+                    num_tiles=args.num_tiles,max_batches=args.max_batches, grad_adapt=args.grad_adapt, ff=ff, freeze=args.freeze, training=args.training, 
+                    test_loaders=test_loaders)
 
 '''#################### VAL - NO ADAPT ####################
 if args.test_val:
