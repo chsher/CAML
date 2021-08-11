@@ -23,8 +23,8 @@ PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, 
 
 
 def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile, resfile_new=None, 
-    n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, 
-    training=True, test_loaders=None, verbose=True):
+    n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, res=False,
+    freeze=True, training=True, test_loaders=None, verbose=True):
 
     tally, best_n, best_auc, best_loss = 0, 0, 0, 1e9
 
@@ -65,8 +65,10 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                     torch.save(net.ff.state_dict(), outfile)
                     #if not freeze:
                     #    torch.save(net.resnet.state_dict(), resfile_new)
-                else:
+                elif res:
                     torch.save(net.resnet.state_dict(), outfile)
+                else:
+                    torch.save(net.state_dict(), outfile)
                 print('----- SAVED MODEL -----')
                 tally = 0
             else:
@@ -82,8 +84,10 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
                     #if not freeze:
                     #    saved_state_new = torch.load(resfile_new, map_location=lambda storage, loc: storage)
                     #    net.resnet.load_state_dict(saved_state_new)
-                else:
+                elif res:
                     net.resnet.load_state_dict(saved_state)
+                else:
+                    net.load_state_dict(saved_state)
                 print('----- RELOADED MODEL ----- | Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
                 tally = 0
                 
@@ -94,28 +98,37 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
     
     print('Best Val Performance: Epoch {0:3d}, Loss {1:7.4f}, AUC {2:7.4f}'.format(best_n, best_loss, best_auc))
 
-    if test_loaders is not None:
-        if grad_adapt:
-            alpha = optimizer.param_groups[0]['lr']
-            wd = optimizer.param_groups[0]['weight_decay']
+    saved_state = torch.load(outfile, map_location=lambda storage, loc: storage)
+    if ff:
+        net.ff.load_state_dict(saved_state)
+    elif res:
+        net.resnet.load_state_dict(saved_state)
+    else:
+        net.load_state_dict(saved_state)
+    
+    for loaderLabel, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loaders, test_loaders]):
+        if loader is not None:
+            if grad_adapt:
+                alpha = optimizer.param_groups[0]['lr']
+                wd = optimizer.param_groups[0]['weight_decay']
 
-            global_theta = []
-            for p in net.ff.parameters():
-                global_theta.append(p.detach().clone().to(device))
+                global_theta = []
+                for p in net.ff.parameters():
+                    global_theta.append(p.detach().clone().to(device))
 
-            stats = metalearner.run_validation(n, test_loaders, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, 
-                                               n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, 
-                                               max_batches=max_batches[-1], verbose=verbose)
-        else:
-            stats = run_validation_epoch(n, test_loaders[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
-            
-        with open(statsfile, 'ab') as f:
-            pickle.dump(stats, f)
+                stats = metalearner.run_validation(n, loader, alpha, wd, net.resnet, net.ff, global_theta, criterions, device, 
+                                                   n_steps=n_steps, wait_time=wait_time, pool=pool, batch_size=batch_size, num_tiles=num_tiles, 
+                                                   max_batches=max_batches[-1], verbose=verbose)
+            else:
+                stats = run_validation_epoch(n, loader[0], net, criterions[1], device, wait_time=wait_time, max_batches=max_batches[1], verbose=verbose)
+                
+            with open(statsfile, 'ab') as f:
+                pickle.dump([loaderLabel, stats], f)
 
-        loss = np.mean(stats[0]) if grad_adapt else stats[0]
-        auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
+            loss = np.mean(stats[0]) if grad_adapt else stats[0]
+            auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
 
-        print('Held-Out Test Performance: Loss {0:7.4f}, AUC {1:7.4f}'.format(loss, auc))
+            print('{0} Overall Performance: Loss {1:7.4f}, AUC {2:7.4f}'.format(loaderLabel, loss, auc))
 
 def cycle(iterable):
     '''

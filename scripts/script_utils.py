@@ -62,8 +62,9 @@ def parse_args():
     parser.add_argument('--hidden_size', type=int, default=512, help='feed forward hidden size')
     parser.add_argument('--freeze', default=False, action='store_true', help='whether to freeze the resnet layers')
     parser.add_argument('--pretrained', default=False, action='store_true', help='whether to load the ImageNet-pretrained resnet')
-    parser.add_argument('--resfile', type=str, default=None, help='path to resnet')
-    parser.add_argument('--resfile_new', type=str, default=None, help='path to newly-trained resnet, if freeze is false')
+    parser.add_argument('--netfile', type=str, default=None, help='file path to full neural network')
+    parser.add_argument('--resfile', type=str, default=None, help='file path to resnet')
+    parser.add_argument('--resfile_new', type=str, default=None, help='file path to newly-trained resnet, if freeze is false')
     parser.add_argument('--grad_adapt', default=False, action='store_true', help='whether to grad adapt non-meta-learned model during test')
     
     # meta-learning parameters

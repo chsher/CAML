@@ -61,6 +61,11 @@ for k,v in zip(script_utils.PARAMS[:-19] + ['RES_DICT', 'TRAIN_SIZE', 'VAL_SIZE'
 
 #################### INIT MODEL ####################
 net = feedforward.ClassifierNet(None, args.output_size, resfile=args.resfile, dropout=args.dropout, pool=args.pool, freeze=False, pretrained=True)
+
+if args.netfile is not None and os.path.exists(args.netfile):
+    saved_state = torch.load(args.netfile, map_location=lambda storage, loc: storage)
+    net.load_state_dict(saved_state)
+
 net.to(device)
 print(net)
 
