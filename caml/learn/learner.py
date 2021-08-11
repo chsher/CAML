@@ -22,7 +22,7 @@ import pdb
 PRINT_STMT = 'Epoch {0:3d}, Minibatch {1:3d}, {6:6} Loss {2:7.4f} AUC {3:7.4f}, {7:6} Loss {4:7.4f} AUC {5:7.4f}'
 
 
-def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience,outfile, statsfile, resfile_new=None, 
+def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer, device, scheduler, patience, outfile, statsfile, resfile_new=None, 
     n_steps=1, n_testtrain=50, wait_time=1, pool=None, batch_size=1, num_tiles=50, max_batches=[20, 20], grad_adapt=False, ff=False, freeze=True, 
     training=True, test_loaders=None, verbose=True):
 
@@ -115,7 +115,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
         loss = np.mean(stats[0]) if grad_adapt else stats[0]
         auc = np.nanmean(stats[1]) if grad_adapt else stats[1]
 
-        print('Held-Out Test Performance: Loss {0:7.4f}, AUC {:7.4f}'.format(loss, auc))
+        print('Held-Out Test Performance: Loss {0:7.4f}, AUC {1:7.4f}'.format(loss, auc))
 
 def cycle(iterable):
     '''

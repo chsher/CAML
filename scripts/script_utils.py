@@ -46,7 +46,7 @@ def parse_args():
     # I/O parameters
     parser.add_argument('--output_size', type=int, default=1, help='model output dimension')
     parser.add_argument('--min_tiles', type=int, default=1, help='min number of tiles for patient to be included during sampling')
-    parser.add_argument('--num_tiles', type=int, default=400, help='max number of tiles to retain per patient')
+    parser.add_argument('--num_tiles', type=int, default=400, help='number of tiles to keep (tile) or sample (slide) per patient')
     parser.add_argument('--label', type=str, default='WGD', help='label on which to perform classification task')
     parser.add_argument('--unit', type=str, default='tile', help='input unit, i.e., whether to train on tile or slide')
     parser.add_argument('--pool', type=str, default=None, help='pooling mechanism to use if input unit is slide')
