@@ -106,7 +106,7 @@ def train_model(n_epochs, train_loader, val_loaders, net, criterions, optimizer,
     else:
         net.load_state_dict(saved_state)
     
-    for loaderLabel, loader in zip(['Train', 'Val', 'Test'], [train_loader, val_loaders, test_loaders]):
+    for loaderLabel, loader in zip(['Train', 'Val', 'Test'], [[train_loader], val_loaders, test_loaders]):
         if loader is not None:
             if grad_adapt:
                 alpha = optimizer.param_groups[0]['lr']

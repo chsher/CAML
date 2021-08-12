@@ -60,7 +60,7 @@ for k,v in zip(script_utils.PARAMS[:-19] + ['RES_DICT', 'TRAIN_SIZE', 'VAL_SIZE'
     print('{0:12} {1}'.format(k, v))
 
 #################### INIT MODEL ####################
-net = feedforward.ClassifierNet(None, args.output_size, resfile=args.resfile, dropout=args.dropout, pool=args.pool, freeze=False, pretrained=True)
+net = feedforward.ClassifierNet(None, args.output_size, resfile=args.resfile, dropout=args.dropout, pool=args.pool, freeze=args.freeze, pretrained=True)
 
 if args.netfile is not None and os.path.exists(args.netfile):
     saved_state = torch.load(args.netfile, map_location=lambda storage, loc: storage)
@@ -75,4 +75,4 @@ scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=args.factor, 
 
 #################### TRAIN ####################
 learner.train_model(args.n_epochs, train_loader, [val_loader], net, criterions, optimizer, device, scheduler, args.patience, args.outfile, args.statsfile, 
-                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, freeze=False, test_loaders=test_loaders)          
+                    wait_time=args.wait_time, max_batches=args.max_batches, training=args.training, ff=args.freeze, test_loaders=test_loaders)          
